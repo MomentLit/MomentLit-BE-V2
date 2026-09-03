@@ -1,0 +1,9 @@
+spring:
+  data:
+    redis:
+      cluster:
+        nodes:
+          - "${REDIS_HOST}:${REDIS_PORT}"
+      password: "${REDIS_PASSWORD:}"
+      ssl:
+        enabled: ${REDIS_SSL_ENABLED:true}

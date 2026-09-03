@@ -1,0 +1,12 @@
+rootProject.name = 'MomentLit-BE-V2'
+
+include 'common'
+include 'modules:image'
+include 'modules:admin'
+include 'modules:user'
+include 'modules:space'
+include 'modules:auth'
+include 'modules:matching'
+include 'modules:popup'
+include 'modules:alarm'
+include 'modules:chating'
