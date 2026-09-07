@@ -153,6 +153,26 @@ Table Chat_Messages {
   created_at datetime [default: `now()`]
 }
 
+// CHATBOT AGGREGATE
+// 별도 FastAPI 서비스(ChatBot 레포)가 소유. 기존 users/spaces/matchings 스키마는 읽기 전용으로만 접근하고,
+// 이 chatbot 스키마(conversations/messages)만 직접 쓴다.
+Table Conversations {
+  id uuid [pk]
+  user_id varchar [not null, note: "Users.id 참조, 스키마 간 FK 없음"]
+  created_at datetime [default: `now()`]
+  updated_at datetime [default: `now()`]
+}
+
+Table Messages {
+  id bigint [pk, increment]
+  conversation_id uuid [not null]
+  role varchar [not null, note: "user | assistant | tool"]
+  content text [not null]
+  recommended_space_ids "bigint[]" [note: "이 메시지에서 추천된 Spaces.id 목록, 배열 컬럼이라 FK 없음"]
+  tool_call jsonb
+  created_at datetime [default: `now()`]
+}
+
 
 // RELATIONSHIPS
 // 참고: 실제 DB에는 이 관계들에 대한 FK 제약이 걸려있지 않습니다.
@@ -176,6 +196,11 @@ Ref: Chat_Rooms.seller_id > Users.id
 Ref: Chat_Messages.chat_room_id > Chat_Rooms.id
 Ref: Chat_Messages.sender_id > Users.id
 
+// 아래 관계는 예외적으로 실제 FK 제약이 걸려 있음 (같은 chatbot 스키마 내부, ON DELETE CASCADE)
+Ref: Messages.conversation_id > Conversations.id
+// 아래는 문서화 목적 참조일 뿐, 스키마 간 FK 없음 (위 전역 노트와 동일)
+Ref: Conversations.user_id > Users.id
+
 
 // TABLE GROUPS
 TableGroup User_Aggregate {
@@ -197,4 +222,8 @@ TableGroup Popup_Aggregate {
 TableGroup Chat_Aggregate {
   Chat_Rooms
   Chat_Messages
+}
+TableGroup Chatbot_Aggregate {
+  Conversations
+  Messages
 }

@@ -25,6 +25,7 @@ import com.example.space.entity.Space;
 import com.example.space.entity.SpaceCategory;
 import com.example.space.entity.SpaceImage;
 import com.example.space.entity.SpaceSchedule;
+import com.example.space.global.client.ChatbotSyncClient;
 import com.example.space.global.exception.BadRequestException;
 import com.example.space.global.exception.ForbiddenException;
 import com.example.space.global.exception.ScheduleNotFoundException;
@@ -36,6 +37,8 @@ import com.example.space.repository.SpaceScheduleRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -52,6 +55,7 @@ public class SpaceService implements SpaceInternalApi {
     private final SpaceImageRepository spaceImageRepository;
     private final SpaceScheduleRepository spaceScheduleRepository;
     private final AddressRepository addressRepository;
+    private final ChatbotSyncClient chatbotSyncClient;
 
     @Transactional
     public SpaceCreateResponse createSpace(
@@ -75,6 +79,8 @@ public class SpaceService implements SpaceInternalApi {
         Space savedSpace = spaceRepository.save(space);
 
         saveImages(savedSpace.getId(), request.imageUrls());
+
+        syncToChatbotAfterCommit(savedSpace.getId());
 
         return SpaceCreateResponse.from(savedSpace);
     }
@@ -127,6 +133,8 @@ public class SpaceService implements SpaceInternalApi {
             spaceImageRepository.deleteAllBySpaceId(spaceId);
             saveImages(spaceId, request.imageUrls());
         }
+
+        syncToChatbotAfterCommit(spaceId);
     }
 
     @Transactional
@@ -141,6 +149,8 @@ public class SpaceService implements SpaceInternalApi {
 
         spaceImageRepository.deleteAllBySpaceId(spaceId);
         spaceScheduleRepository.deleteAllBySpaceId(spaceId);
+
+        syncToChatbotAfterCommit(spaceId);
     }
 
     public MySpaceListResponses getMySpaces(
@@ -270,6 +280,8 @@ public class SpaceService implements SpaceInternalApi {
         }
 
         space.updateAdminStatus(request.adminStatus());
+
+        syncToChatbotAfterCommit(spaceId);
     }
 
     @Transactional
@@ -317,6 +329,15 @@ public class SpaceService implements SpaceInternalApi {
                 .orElseThrow(() -> new ScheduleNotFoundException("일정을 찾을 수 없습니다."));
 
         spaceScheduleRepository.delete(schedule);
+    }
+
+    private void syncToChatbotAfterCommit(Long spaceId) {
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                chatbotSyncClient.syncSpace(spaceId);
+            }
+        });
     }
 
     private Space getActiveSpace(Long spaceId) {
