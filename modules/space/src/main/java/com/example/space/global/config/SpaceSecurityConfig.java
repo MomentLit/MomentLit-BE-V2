@@ -45,6 +45,10 @@ public class SpaceSecurityConfig {
                         .requestMatchers(HttpMethod.PATCH, "/spaces/*").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/spaces/*").authenticated()
 
+                        .requestMatchers(HttpMethod.POST, "/spaces/*/likes").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/spaces/*/likes").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/spaces/*/likes/me").authenticated()
+
                         .requestMatchers(HttpMethod.POST, "/spaces/*/schedule").authenticated()
                         .requestMatchers(HttpMethod.PATCH, "/spaces/*/schedule/*").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/spaces/*/schedule/*").authenticated()

@@ -3,7 +3,11 @@ package com.example.space.repository;
 import com.example.space.entity.ApprovalStatus;
 import com.example.space.entity.Space;
 import com.example.space.entity.SpaceCategory;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -13,6 +17,10 @@ import java.util.Optional;
 public interface SpaceRepository extends JpaRepository<Space, Long> {
 
     Optional<Space> findByIdAndDeletedAtIsNull(Long id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select s from Space s where s.id = :spaceId and s.deletedAt is null")
+    Optional<Space> findByIdWithLock(@Param("spaceId") Long spaceId);
 
     List<Space> findAllByDeletedAtIsNull();
 

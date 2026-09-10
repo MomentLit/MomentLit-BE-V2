@@ -17,6 +17,9 @@ public record SpaceListResponse(
         @JsonProperty("price_per_hour")
         Integer pricePerHour,
 
+        @JsonProperty("like_count")
+        Integer likeCount,
+
         String category
 ) {
 
@@ -30,6 +33,7 @@ public record SpaceListResponse(
                 address,
                 space.getThumbnailUrl(),
                 space.getPricePerHour(),
+                space.getLikeCount(),
                 space.getCategory().name()
         );
     }

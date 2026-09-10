@@ -51,8 +51,11 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       JWT_SECRET: momentlit-monolith-jwt-secret-key-for-local-test-1234567890
+      CHATBOT_BASE_URL: http://host.docker.internal:8090
+      CHATBOT_INTERNAL_API_KEY: ${CHATBOT_INTERNAL_API_KEY}
+      CORS_ALLOWED_ORIGINS: http://localhost:3000
     ports:
-      - "8090:8080"
+      - "8080:8080"
 
 volumes:
   v2_postgres_data:

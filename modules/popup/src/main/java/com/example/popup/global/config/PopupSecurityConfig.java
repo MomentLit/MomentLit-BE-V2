@@ -44,6 +44,18 @@ public class PopupSecurityConfig {
                         ).authenticated()
                         .requestMatchers(
                                 HttpMethod.POST,
+                                "/popups/*/likes"
+                        ).authenticated()
+                        .requestMatchers(
+                                HttpMethod.DELETE,
+                                "/popups/*/likes"
+                        ).authenticated()
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/popups/*/likes/me"
+                        ).authenticated()
+                        .requestMatchers(
+                                HttpMethod.POST,
                                 "/popups/*/reviews",
                                 "/popup-reviews/**"
                         ).authenticated()

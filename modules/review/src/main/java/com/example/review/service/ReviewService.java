@@ -1,5 +1,6 @@
 package com.example.review.service;
 
+import com.example.common.event.ReviewDeletedEvent;
 import com.example.matching.entity.Matching;
 import com.example.matching.entity.MatchingStatus;
 import com.example.matching.repository.MatchingRepository;
@@ -27,6 +28,7 @@ import com.example.user.api.UserInternalApi;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.context.ApplicationEventPublisher;
 
 @Service
 @RequiredArgsConstructor
@@ -38,6 +40,7 @@ public class ReviewService {
     private final MatchingRepository matchingRepository;
     private final PopupRepository popupRepository;
     private final UserInternalApi userApi;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public SpaceReviewCreateResponse createSpaceReview(
@@ -94,6 +97,7 @@ public class ReviewService {
         SpaceReview review = getSpaceReview(reviewId);
         validateWriter(review.isWrittenBy(userId));
         spaceReviewRepository.delete(review);
+        eventPublisher.publishEvent(new ReviewDeletedEvent("SPACE", reviewId));
     }
 
     @Transactional
@@ -152,6 +156,7 @@ public class ReviewService {
         PopupReview review = getPopupReview(reviewId);
         validateWriter(review.isWrittenBy(userId));
         popupReviewRepository.delete(review);
+        eventPublisher.publishEvent(new ReviewDeletedEvent("POPUP", reviewId));
     }
 
     private Matching getMatching(Long matchingId) {

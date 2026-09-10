@@ -38,6 +38,9 @@ public class Space {
     @Column(name = "price_per_hour", nullable = false)
     private Integer pricePerHour;
 
+    @Column(name = "like_count", nullable = false)
+    private Integer likeCount;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "admin_status", nullable = false)
     private ApprovalStatus adminStatus;
@@ -81,6 +84,7 @@ public class Space {
         this.addressId = addressId;
         this.thumbnailUrl = thumbnailUrl;
         this.pricePerHour = pricePerHour;
+        this.likeCount = 0;
         this.category = category;
         this.adminStatus = ApprovalStatus.PENDING;
         this.isActive = true;
@@ -159,5 +163,15 @@ public class Space {
 
     public boolean isOwner(String userId) {
         return this.hostId.equals(userId);
+    }
+
+    public void increaseLikeCount() {
+        this.likeCount++;
+    }
+
+    public void decreaseLikeCount() {
+        if (this.likeCount > 0) {
+            this.likeCount--;
+        }
     }
 }

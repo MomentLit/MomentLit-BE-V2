@@ -31,6 +31,9 @@ public record SpaceDetailResponse(
         @JsonProperty("price_per_hour")
         Integer pricePerHour,
 
+        @JsonProperty("like_count")
+        Integer likeCount,
+
         String category
 ) {
 
@@ -51,6 +54,7 @@ public record SpaceDetailResponse(
                         .map(SpaceImage::getImageUrl)
                         .toList(),
                 space.getPricePerHour(),
+                space.getLikeCount(),
                 space.getCategory().name()
         );
     }

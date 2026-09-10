@@ -98,4 +98,14 @@ public class PopupReview {
     public boolean isWrittenBy(String userId) {
         return this.userId.equals(userId);
     }
+
+    public void increaseLikeCount() {
+        this.likeCount++;
+    }
+
+    public void decreaseLikeCount() {
+        if (this.likeCount > 0) {
+            this.likeCount--;
+        }
+    }
 }

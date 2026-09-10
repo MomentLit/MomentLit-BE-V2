@@ -57,6 +57,7 @@ Table Spaces {
   ai_summary text
   thumbnail_url varchar [not null]
   price_per_hour int [not null]
+  like_count int [not null, note: "공간 좋아요 등록/취소 시 함께 증감"]
   admin_status ApprovalStatus [not null, note: "코드가 생성 시점에 PENDING으로 채움 (DB 레벨 default 없음)"]
   is_active boolean [not null, note: "코드가 생성 시점에 true로 채움 (DB 레벨 default 없음)"]
   category SpaceCategory [not null]
@@ -128,8 +129,57 @@ Table Popups {
   start_time datetime [not null]
   end_time datetime [not null]
   view_count int [not null, note: "팝업 상세 조회(GET /popups/{id})할 때마다 증가. 실제로 동작함"]
-  like_count int [not null, note: "엔티티/DTO/추천 정렬 기준엔 있지만 값을 올리는 API가 없어 항상 0"]
+  like_count int [not null, note: "팝업 좋아요 등록/취소 시 함께 증감. 추천 정렬 기준"]
   created_at datetime [default: `now()`]
+}
+
+// LIKE AGGREGATE
+Table Popup_Likes {
+  id bigint [pk, increment]
+  popup_id bigint [not null]
+  user_id varchar [not null]
+  created_at datetime [default: `now()`]
+
+  indexes {
+    (popup_id, user_id) [unique, name: "uk_popup_likes_popup_id_user_id", note: "사용자당 팝업 하나에 좋아요 한 건만 허용"]
+    (user_id, created_at) [name: "idx_popup_likes_user_id_created_at", note: "향후 내 좋아요 목록 조회용"]
+  }
+}
+
+Table Space_Likes {
+  id bigint [pk, increment]
+  space_id bigint [not null]
+  user_id varchar [not null]
+  created_at datetime [default: `now()`]
+
+  indexes {
+    (space_id, user_id) [unique, name: "uk_space_likes_space_id_user_id", note: "사용자당 공간 하나에 좋아요 한 건만 허용"]
+    (user_id, created_at) [name: "idx_space_likes_user_id_created_at", note: "향후 내 좋아요 목록 조회용"]
+  }
+}
+
+Table Space_Review_Likes {
+  id bigint [pk, increment]
+  space_review_id bigint [not null]
+  user_id varchar [not null]
+  created_at datetime [default: `now()`]
+
+  indexes {
+    (space_review_id, user_id) [unique, name: "uk_space_review_likes_review_id_user_id", note: "사용자당 공간 리뷰 하나에 좋아요 한 건만 허용"]
+    (user_id, created_at) [name: "idx_space_review_likes_user_id_created_at", note: "향후 내 좋아요 목록 조회용"]
+  }
+}
+
+Table Popup_Review_Likes {
+  id bigint [pk, increment]
+  popup_review_id bigint [not null]
+  user_id varchar [not null]
+  created_at datetime [default: `now()`]
+
+  indexes {
+    (popup_review_id, user_id) [unique, name: "uk_popup_review_likes_review_id_user_id", note: "사용자당 팝업 리뷰 하나에 좋아요 한 건만 허용"]
+    (user_id, created_at) [name: "idx_popup_review_likes_user_id_created_at", note: "향후 내 좋아요 목록 조회용"]
+  }
 }
 
 // REVIEW AGGREGATE
@@ -140,7 +190,7 @@ Table Space_Reviews {
   user_id varchar [not null, note: "리뷰 작성자(매칭의 seller)"]
   rating int [not null, note: "1~5점"]
   content text [not null]
-  like_count int [not null, note: "코드가 생성 시점에 0으로 채움. 좋아요 API는 아직 없음"]
+  like_count int [not null, note: "공간 리뷰 좋아요 등록/취소 시 함께 증감"]
   created_at datetime [default: `now()`]
   updated_at datetime [default: `now()`]
 }
@@ -154,7 +204,7 @@ Table Popup_Reviews {
   verification_type varchar [not null, note: "QR 또는 RECEIPT"]
   verification_payload text [not null, note: "검증 대상 원문. 현재는 저장만 하며 실제 검증 전에는 is_verified=false"]
   is_verified boolean [not null, note: "코드가 생성 시점에 false로 채움"]
-  like_count int [not null, note: "코드가 생성 시점에 0으로 채움. 좋아요 API는 아직 없음"]
+  like_count int [not null, note: "팝업 리뷰 좋아요 등록/취소 시 함께 증감"]
   created_at datetime [default: `now()`]
   updated_at datetime [default: `now()`]
 
@@ -207,7 +257,7 @@ Table Messages {
 
 // RELATIONSHIPS
 // 참고: 실제 DB에는 이 관계들에 대한 FK 제약이 걸려있지 않습니다.
-// 스키마가 users/spaces/matchings/alarms/popups/chating으로 분리되어 있고,
+// 스키마가 users/spaces/matchings/alarms/popups/likes/chating으로 분리되어 있고,
 // 나중에 다시 별도 서비스/DB로 쪼갤 수 있도록 스키마 간 FK를 의도적으로 걸지 않았습니다.
 Ref: Spaces.host_id > Users.id
 Ref: Space_Images.space_id > Spaces.id
@@ -221,6 +271,14 @@ Ref: Matchings_Alarm.matching_id > Matchings.id
 Ref: Popups.matching_id > Matchings.id
 Ref: Popups.space_id > Spaces.id
 Ref: Popups.seller_id > Users.id
+Ref: Popup_Likes.popup_id > Popups.id
+Ref: Popup_Likes.user_id > Users.id
+Ref: Space_Likes.space_id > Spaces.id
+Ref: Space_Likes.user_id > Users.id
+Ref: Space_Review_Likes.user_id > Users.id
+Ref: Space_Review_Likes.space_review_id > Space_Reviews.id
+Ref: Popup_Review_Likes.user_id > Users.id
+Ref: Popup_Review_Likes.popup_review_id > Popup_Reviews.id
 Ref: Space_Reviews.matching_id > Matchings.id
 Ref: Space_Reviews.space_id > Spaces.id
 Ref: Space_Reviews.user_id > Users.id
@@ -254,6 +312,12 @@ TableGroup Matching_Aggregate {
 }
 TableGroup Popup_Aggregate {
   Popups
+}
+TableGroup Like_Aggregate {
+  Popup_Likes
+  Space_Likes
+  Space_Review_Likes
+  Popup_Review_Likes
 }
 TableGroup Review_Aggregate {
   Space_Reviews
