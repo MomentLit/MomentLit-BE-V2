@@ -29,6 +29,7 @@ dependencies {
     implementation project(':modules:popup')
     implementation project(':modules:alarm')
     implementation project(':modules:chating')
+    implementation project(':modules:review')
     implementation 'org.springframework.boot:spring-boot-starter'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'

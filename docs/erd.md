@@ -132,6 +132,37 @@ Table Popups {
   created_at datetime [default: `now()`]
 }
 
+// REVIEW AGGREGATE
+Table Space_Reviews {
+  id bigint [pk, increment]
+  matching_id bigint [unique, not null, note: "매칭당 공간 리뷰는 한 건만 작성 가능"]
+  space_id bigint [not null]
+  user_id varchar [not null, note: "리뷰 작성자(매칭의 seller)"]
+  rating int [not null, note: "1~5점"]
+  content text [not null]
+  like_count int [not null, note: "코드가 생성 시점에 0으로 채움. 좋아요 API는 아직 없음"]
+  created_at datetime [default: `now()`]
+  updated_at datetime [default: `now()`]
+}
+
+Table Popup_Reviews {
+  id bigint [pk, increment]
+  popup_id bigint [not null]
+  user_id varchar [not null]
+  rating int [not null, note: "1~5점"]
+  content text [not null]
+  verification_type varchar [not null, note: "QR 또는 RECEIPT"]
+  verification_payload text [not null, note: "검증 대상 원문. 현재는 저장만 하며 실제 검증 전에는 is_verified=false"]
+  is_verified boolean [not null, note: "코드가 생성 시점에 false로 채움"]
+  like_count int [not null, note: "코드가 생성 시점에 0으로 채움. 좋아요 API는 아직 없음"]
+  created_at datetime [default: `now()`]
+  updated_at datetime [default: `now()`]
+
+  indexes {
+    (popup_id, user_id) [unique]
+  }
+}
+
 // CHAT AGGREGATE
 Table Chat_Rooms {
   id bigint [pk, increment]
@@ -190,6 +221,11 @@ Ref: Matchings_Alarm.matching_id > Matchings.id
 Ref: Popups.matching_id > Matchings.id
 Ref: Popups.space_id > Spaces.id
 Ref: Popups.seller_id > Users.id
+Ref: Space_Reviews.matching_id > Matchings.id
+Ref: Space_Reviews.space_id > Spaces.id
+Ref: Space_Reviews.user_id > Users.id
+Ref: Popup_Reviews.popup_id > Popups.id
+Ref: Popup_Reviews.user_id > Users.id
 Ref: Chat_Rooms.space_id > Spaces.id
 Ref: Chat_Rooms.host_id > Users.id
 Ref: Chat_Rooms.seller_id > Users.id
@@ -218,6 +254,10 @@ TableGroup Matching_Aggregate {
 }
 TableGroup Popup_Aggregate {
   Popups
+}
+TableGroup Review_Aggregate {
+  Space_Reviews
+  Popup_Reviews
 }
 TableGroup Chat_Aggregate {
   Chat_Rooms
