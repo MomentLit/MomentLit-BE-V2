@@ -116,7 +116,11 @@ jobs:
             --force-new-deployment
 
       - name: Wait for deployment completion
+        env:
+          TASK_DEFINITION_ARN: ${{ steps.task-definition.outputs.arn }}
         run: |
+          STABLE_CHECKS=0
+
           for attempt in {1..80}; do
             SERVICE=$(aws ecs describe-services \
               --cluster "$ECS_CLUSTER" \
@@ -128,14 +132,22 @@ jobs:
             RUNNING_COUNT=$(jq -r '.runningCount' <<< "$SERVICE")
             DESIRED_COUNT=$(jq -r '.desiredCount' <<< "$SERVICE")
             PENDING_COUNT=$(jq -r '.pendingCount' <<< "$SERVICE")
+            PRIMARY_TASK_DEFINITION=$(jq -r '.deployments[] | select(.status == "PRIMARY") | .taskDefinition' <<< "$SERVICE")
+            OLD_TASK_COUNT=$(jq '[.deployments[] | select(.status != "PRIMARY") | (.runningCount + .pendingCount)] | add // 0' <<< "$SERVICE")
 
-            echo "Attempt $attempt/80: rollout=$ROLLOUT_STATE running=$RUNNING_COUNT desired=$DESIRED_COUNT pending=$PENDING_COUNT"
+            echo "Attempt $attempt/80: rollout=$ROLLOUT_STATE running=$RUNNING_COUNT desired=$DESIRED_COUNT pending=$PENDING_COUNT old=$OLD_TASK_COUNT"
 
-            if [ "$ROLLOUT_STATE" = "COMPLETED" ] && \
+            if [ "$PRIMARY_TASK_DEFINITION" = "$TASK_DEFINITION_ARN" ] && \
               [ "$RUNNING_COUNT" = "$DESIRED_COUNT" ] && \
-              [ "$PENDING_COUNT" = "0" ]; then
-              echo "ECS deployment completed."
-              exit 0
+              [ "$PENDING_COUNT" = "0" ] && \
+              [ "$OLD_TASK_COUNT" = "0" ]; then
+              STABLE_CHECKS=$((STABLE_CHECKS + 1))
+              if [ "$STABLE_CHECKS" -ge 2 ]; then
+                echo "New task definition is running without pending or old tasks."
+                exit 0
+              fi
+            else
+              STABLE_CHECKS=0
             fi
 
             if [ "$ROLLOUT_STATE" = "FAILED" ]; then
