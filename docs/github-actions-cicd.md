@@ -42,7 +42,9 @@ Create a dedicated IAM user (for example `github-actions-momentlit-deployer`), g
       "Effect": "Allow",
       "Action": [
         "ecr:BatchCheckLayerAvailability",
+        "ecr:BatchGetImage",
         "ecr:CompleteLayerUpload",
+        "ecr:GetDownloadUrlForLayer",
         "ecr:InitiateLayerUpload",
         "ecr:PutImage",
         "ecr:UploadLayerPart"
@@ -78,7 +80,7 @@ Create a dedicated IAM user (for example `github-actions-momentlit-deployer`), g
       "Effect": "Allow",
       "Action": "iam:PassRole",
       "Resource": [
-        "arn:aws:iam::834088498570:role/ecsTaskExecutionRole",
+        "arn:aws:iam::834088498570:role/service-role/ecsTaskExecutionRole",
         "arn:aws:iam::834088498570:role/momentlit-image-task-role",
         "arn:aws:iam::834088498570:role/momentlit-chatbot-task-role"
       ],

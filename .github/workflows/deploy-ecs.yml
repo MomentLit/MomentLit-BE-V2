@@ -115,6 +115,37 @@ jobs:
             --task-definition "$TASK_DEFINITION_ARN" \
             --force-new-deployment
 
-          aws ecs wait services-stable \
-            --cluster "$ECS_CLUSTER" \
-            --services "$ECS_SERVICE"
+      - name: Wait for deployment completion
+        run: |
+          for attempt in {1..80}; do
+            SERVICE=$(aws ecs describe-services \
+              --cluster "$ECS_CLUSTER" \
+              --services "$ECS_SERVICE" \
+              --query 'services[0]' \
+              --output json)
+
+            ROLLOUT_STATE=$(jq -r '.deployments[] | select(.status == "PRIMARY") | .rolloutState' <<< "$SERVICE")
+            RUNNING_COUNT=$(jq -r '.runningCount' <<< "$SERVICE")
+            DESIRED_COUNT=$(jq -r '.desiredCount' <<< "$SERVICE")
+            PENDING_COUNT=$(jq -r '.pendingCount' <<< "$SERVICE")
+
+            echo "Attempt $attempt/80: rollout=$ROLLOUT_STATE running=$RUNNING_COUNT desired=$DESIRED_COUNT pending=$PENDING_COUNT"
+
+            if [ "$ROLLOUT_STATE" = "COMPLETED" ] && \
+              [ "$RUNNING_COUNT" = "$DESIRED_COUNT" ] && \
+              [ "$PENDING_COUNT" = "0" ]; then
+              echo "ECS deployment completed."
+              exit 0
+            fi
+
+            if [ "$ROLLOUT_STATE" = "FAILED" ]; then
+              echo "$SERVICE" | jq '.deployments, .events[:10]'
+              exit 1
+            fi
+
+            sleep 15
+          done
+
+          echo "ECS deployment did not complete within 20 minutes."
+          echo "$SERVICE" | jq '.deployments, .events[:10]'
+          exit 1
