@@ -43,6 +43,14 @@ public class UserExceptionHandler {
                 .body(ApiResponse.fail("[ERROR: User/Email/Duplicate] " + e.getMessage()));
     }
 
+    @ExceptionHandler(DuplicatePhoneException.class)
+    public ResponseEntity<ApiResponse<String>> duplicatePhoneHandleException(DuplicatePhoneException e) {
+        log.warn("DuplicatePhoneException: {}", e.getMessage());
+
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.fail("[ERROR: User/Phone/Duplicate] " + e.getMessage()));
+    }
+
     @ExceptionHandler(DeletedUserException.class)
     public ResponseEntity<ApiResponse<String>> deletedUserHandleException(DeletedUserException e) {
         log.warn("DeletedUserException: {}", e.getMessage());

@@ -39,6 +39,9 @@ public class Matching {
     @Column(nullable = false, name = "total_price")
     private Integer totalPrice;
 
+    @Column(name = "guest_count")
+    private Integer guestCount;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private MatchingStatus status;
@@ -57,7 +60,8 @@ public class Matching {
             String hostId,
             LocalDateTime startTime,
             LocalDateTime endTime,
-            Integer totalPrice
+            Integer totalPrice,
+            Integer guestCount
     ) {
         return Matching.builder()
                 .spaceId(spaceId)
@@ -66,6 +70,7 @@ public class Matching {
                 .startTime(startTime)
                 .endTime(endTime)
                 .totalPrice(totalPrice)
+                .guestCount(guestCount)
                 .status(MatchingStatus.REQUESTED)
                 .build();
     }
@@ -106,7 +111,7 @@ public class Matching {
 
     private void validateRequested() {
         if (status != MatchingStatus.REQUESTED) {
-            throw new InvalidMatchingStateException("요청 상태의 매칭만 처리 가능");
+            throw new InvalidMatchingStateException("승인 대기 상태인 예약 요청만 처리할 수 있습니다.");
         }
     }
 }

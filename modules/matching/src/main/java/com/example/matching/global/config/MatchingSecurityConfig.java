@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -33,6 +34,8 @@ public class MatchingSecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .authorizeHttpRequests(auth -> auth
+                        // 공간 상세 화면의 호스트 정보 카드(응답률/평균 응답시간)에서 비로그인 사용자도 조회 가능해야 한다.
+                        .requestMatchers(HttpMethod.GET, "/matchings/host-stats/**").permitAll()
                         .requestMatchers("/matchings/**").authenticated()
                         .anyRequest().permitAll()
                 )

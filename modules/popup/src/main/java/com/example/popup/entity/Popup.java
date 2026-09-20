@@ -39,7 +39,7 @@ public class Popup {
     @Column(columnDefinition = "text")
     private String description;
 
-    @Column(nullable = false, name = "thumbnail_url")
+    @Column(name = "thumbnail_url")
     private String thumbnailUrl;
 
     @Column(name = "ai_brand_summary", columnDefinition = "text")

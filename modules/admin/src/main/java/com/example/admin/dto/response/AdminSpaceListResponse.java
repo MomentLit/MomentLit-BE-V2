@@ -16,7 +16,12 @@ public record AdminSpaceListResponse(
         String category,
         String phone,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        Double area,
+        Integer capacity,
+        String floor,
+        String parkingInfo,
+        String usageUnit
 ) {
     public static AdminSpaceListResponse from(com.example.space.dto.response.AdminSpaceListResponse space){
         return new AdminSpaceListResponse(
@@ -33,7 +38,12 @@ public record AdminSpaceListResponse(
                 space.category(),
                 space.phone(),
                 space.createdAt(),
-                space.updatedAt()
+                space.updatedAt(),
+                space.area(),
+                space.capacity(),
+                space.floor(),
+                space.parkingInfo(),
+                space.usageUnit()
         );
     }
 }

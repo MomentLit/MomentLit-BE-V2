@@ -4,6 +4,7 @@ import com.example.common.dto.ApiResponse;
 import com.example.common.security.UserPrincipal;
 import com.example.common.util.ResponseUtil;
 import com.example.matching.dto.request.MatchingCreateRequest;
+import com.example.matching.dto.response.HostStatsResponse;
 import com.example.matching.dto.response.MatchingCreateResponse;
 import com.example.matching.dto.response.MatchingListResponse;
 import com.example.matching.service.MatchingService;
@@ -79,5 +80,15 @@ public class MatchingController {
         matchingService.cancel(principal.userId(), matchingId);
 
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/host-stats/{host-id}")
+    public ResponseEntity<ApiResponse<HostStatsResponse>> getHostStats(
+            @PathVariable("host-id") String hostId
+    ) {
+        HostStatsResponse response = matchingService.getHostStats(hostId);
+        ApiResponse<HostStatsResponse> apiResponse = ResponseUtil.success("select host stats", response);
+
+        return ResponseEntity.ok(apiResponse);
     }
 }

@@ -22,8 +22,6 @@ public interface PopupRepository extends JpaRepository<Popup, Long> {
     @Query("select p from Popup p where p.id = :popupId")
     Optional<Popup> findByIdWithLock(@Param("popupId") Long popupId);
 
-    List<Popup> findAllByOrderByCreatedAtDesc();
-
     List<Popup> findTop10ByOrderByLikeCountDescViewCountDescCreatedAtDesc();
 
     List<Popup> findAllBySellerIdOrderByCreatedAtDesc(String sellerId);

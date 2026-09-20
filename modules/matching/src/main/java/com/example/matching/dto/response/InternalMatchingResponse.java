@@ -28,6 +28,9 @@ public record InternalMatchingResponse(
         @JsonProperty("total_price")
         Integer totalPrice,
 
+        @JsonProperty("guest_count")
+        Integer guestCount,
+
         MatchingStatus status,
 
         @JsonProperty("created_at")
@@ -46,6 +49,7 @@ public record InternalMatchingResponse(
                 matching.getStartTime(),
                 matching.getEndTime(),
                 matching.getTotalPrice(),
+                matching.getGuestCount(),
                 matching.getStatus(),
                 matching.getCreatedAt(),
                 matching.getUpdatedAt()

@@ -28,6 +28,9 @@ public record MatchingSearchResponse(
         @JsonProperty("total_price")
         Integer totalPrice,
 
+        @JsonProperty("guest_count")
+        Integer guestCount,
+
         MatchingStatus status,
 
         @JsonProperty("created_at")
@@ -43,6 +46,7 @@ public record MatchingSearchResponse(
                 matching.getStartTime(),
                 matching.getEndTime(),
                 matching.getTotalPrice(),
+                matching.getGuestCount(),
                 matching.getStatus(),
                 matching.getCreatedAt()
         );

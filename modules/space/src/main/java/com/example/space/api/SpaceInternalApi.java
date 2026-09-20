@@ -7,6 +7,7 @@ import com.example.space.dto.response.SpaceAdminStatusResponse;
 import com.example.space.dto.response.SpaceDetailResponse;
 import com.example.space.dto.response.SpaceMatchingContextResponse;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 public interface SpaceInternalApi {
@@ -22,4 +23,7 @@ public interface SpaceInternalApi {
     SpaceMatchingContextResponse getMatchingContext(Long spaceId, LocalDateTime startTime, LocalDateTime endTime);
 
     SpaceDetailResponse getSpace(Long spaceId);
+
+    /** 매칭 승인 시 matching 모듈이 호출 — 그 날짜를 예약 완료로 기록해 날짜 검색에서 걸러지게 한다. */
+    void markSpaceBooked(Long spaceId, LocalDate date, Long matchingId);
 }

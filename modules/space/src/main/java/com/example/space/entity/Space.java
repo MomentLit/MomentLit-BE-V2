@@ -1,6 +1,7 @@
 package com.example.space.entity;
 
 
+import com.example.space.global.exception.BadRequestException;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -32,7 +33,7 @@ public class Space {
     @Column(name = "address_id", nullable = false)
     private Long addressId;
 
-    @Column(name = "thumbnail_url", nullable = false)
+    @Column(name = "thumbnail_url")
     private String thumbnailUrl;
 
     @Column(name = "price_per_hour", nullable = false)
@@ -53,6 +54,19 @@ public class Space {
     private SpaceCategory category;
 
     private String phone;
+
+    private Double area;
+
+    private Integer capacity;
+
+    private String floor;
+
+    @Column(name = "parking_info")
+    private String parkingInfo;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "usage_unit")
+    private UsageUnit usageUnit;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -75,7 +89,13 @@ public class Space {
             String thumbnailUrl,
             Integer pricePerHour,
             SpaceCategory category,
-            String phone
+            String phone,
+            Double area,
+            Integer capacity,
+            String floor,
+            String parkingInfo,
+            UsageUnit usageUnit,
+            ApprovalStatus adminStatus
     ) {
         this.hostId = hostId;
         this.name = name;
@@ -86,9 +106,14 @@ public class Space {
         this.pricePerHour = pricePerHour;
         this.likeCount = 0;
         this.category = category;
-        this.adminStatus = ApprovalStatus.PENDING;
+        this.adminStatus = adminStatus;
         this.isActive = true;
         this.phone = phone;
+        this.area = area;
+        this.capacity = capacity;
+        this.floor = floor;
+        this.parkingInfo = parkingInfo;
+        this.usageUnit = usageUnit;
     }
 
     public static Space create(
@@ -100,7 +125,13 @@ public class Space {
             String thumbnailUrl,
             Integer pricePerHour,
             SpaceCategory category,
-            String phone
+            String phone,
+            Double area,
+            Integer capacity,
+            String floor,
+            String parkingInfo,
+            UsageUnit usageUnit,
+            Boolean isDraft
     ) {
         return Space.builder()
                 .hostId(hostId)
@@ -112,6 +143,12 @@ public class Space {
                 .pricePerHour(pricePerHour)
                 .category(category)
                 .phone(phone)
+                .area(area)
+                .capacity(capacity)
+                .floor(floor)
+                .parkingInfo(parkingInfo)
+                .usageUnit(usageUnit)
+                .adminStatus(Boolean.TRUE.equals(isDraft) ? ApprovalStatus.DRAFT : ApprovalStatus.PENDING)
                 .build();
     }
 
@@ -122,7 +159,12 @@ public class Space {
             String thumbnailUrl,
             Integer pricePerHour,
             SpaceCategory category,
-            String phone
+            String phone,
+            Double area,
+            Integer capacity,
+            String floor,
+            String parkingInfo,
+            UsageUnit usageUnit
     ) {
         if (name != null) {
             this.name = name;
@@ -150,10 +192,42 @@ public class Space {
         if (phone != null) {
             this.phone = phone;
         }
+        if (area != null) {
+            this.area = area;
+        }
+        if (capacity != null) {
+            this.capacity = capacity;
+        }
+        if (floor != null) {
+            this.floor = floor;
+        }
+        if (parkingInfo != null) {
+            this.parkingInfo = parkingInfo;
+        }
+        if (usageUnit != null) {
+            this.usageUnit = usageUnit;
+        }
     }
 
     public void updateAdminStatus(ApprovalStatus adminStatus) {
         this.adminStatus = adminStatus;
+    }
+
+    /**
+     * 임시저장(DRAFT) ↔ 승인 대기(PENDING) 전환.
+     * isDraft=true면 임시저장으로 되돌리고, false면 정식 제출(승인 대기)한다.
+     * 이미 관리자가 처리(APPROVED/REJECTED)한 공간은 이 흐름으로 되돌릴 수 없다.
+     */
+    public void applyDraftTransition(Boolean isDraft) {
+        if (isDraft == null) {
+            return;
+        }
+
+        if (this.adminStatus == ApprovalStatus.APPROVED || this.adminStatus == ApprovalStatus.REJECTED) {
+            throw new BadRequestException("승인 또는 거절된 공간은 임시저장 상태로 전환할 수 없습니다.");
+        }
+
+        this.adminStatus = isDraft ? ApprovalStatus.DRAFT : ApprovalStatus.PENDING;
     }
 
     public void delete() {
