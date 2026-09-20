@@ -1,0 +1,163 @@
+name: Deploy V2 to ECS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-v2
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ap-northeast-2
+  ECR_REPOSITORY: momentlit/server
+  ECS_CLUSTER: momentlit
+  ECS_SERVICE: momentlit-server
+  ECS_TASK_FAMILY: momentlit-momentlit-server
+
+jobs:
+  deploy:
+    name: Build and deploy
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: Run tests before deployment
+        run: ./gradlew test
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set image URI
+        id: image
+        env:
+          ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          IMAGE_URI="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          echo "uri=$IMAGE_URI" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Linux image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.image.outputs.uri }}
+
+      - name: Register task definition with new image
+        id: task-definition
+        env:
+          IMAGE_URI: ${{ steps.image.outputs.uri }}
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition "$ECS_TASK_FAMILY" \
+            --query taskDefinition \
+            --output json > current-task-definition.json
+
+          CONTAINER_COUNT=$(jq '.containerDefinitions | length' current-task-definition.json)
+          test "$CONTAINER_COUNT" -eq 1
+
+          jq --arg image "$IMAGE_URI" '
+            del(
+              .taskDefinitionArn,
+              .revision,
+              .status,
+              .requiresAttributes,
+              .compatibilities,
+              .registeredAt,
+              .registeredBy,
+              .deregisteredAt
+            )
+            | .containerDefinitions[0].image = $image
+          ' current-task-definition.json > next-task-definition.json
+
+          TASK_DEFINITION_ARN=$(aws ecs register-task-definition \
+            --cli-input-json file://next-task-definition.json \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text)
+
+          echo "arn=$TASK_DEFINITION_ARN" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy task definition
+        env:
+          TASK_DEFINITION_ARN: ${{ steps.task-definition.outputs.arn }}
+        run: |
+          aws ecs update-service \
+            --cluster "$ECS_CLUSTER" \
+            --service "$ECS_SERVICE" \
+            --task-definition "$TASK_DEFINITION_ARN" \
+            --force-new-deployment
+
+      - name: Wait for deployment completion
+        env:
+          TASK_DEFINITION_ARN: ${{ steps.task-definition.outputs.arn }}
+        run: |
+          STABLE_CHECKS=0
+
+          for attempt in {1..80}; do
+            SERVICE=$(aws ecs describe-services \
+              --cluster "$ECS_CLUSTER" \
+              --services "$ECS_SERVICE" \
+              --query 'services[0]' \
+              --output json)
+
+            ROLLOUT_STATE=$(jq -r '.deployments[] | select(.status == "PRIMARY") | .rolloutState' <<< "$SERVICE")
+            RUNNING_COUNT=$(jq -r '.runningCount' <<< "$SERVICE")
+            DESIRED_COUNT=$(jq -r '.desiredCount' <<< "$SERVICE")
+            PENDING_COUNT=$(jq -r '.pendingCount' <<< "$SERVICE")
+            PRIMARY_TASK_DEFINITION=$(jq -r '.deployments[] | select(.status == "PRIMARY") | .taskDefinition' <<< "$SERVICE")
+            OLD_TASK_COUNT=$(jq '[.deployments[] | select(.status != "PRIMARY") | (.runningCount + .pendingCount)] | add // 0' <<< "$SERVICE")
+
+            echo "Attempt $attempt/80: rollout=$ROLLOUT_STATE running=$RUNNING_COUNT desired=$DESIRED_COUNT pending=$PENDING_COUNT old=$OLD_TASK_COUNT"
+
+            if [ "$PRIMARY_TASK_DEFINITION" = "$TASK_DEFINITION_ARN" ] && \
+              [ "$RUNNING_COUNT" = "$DESIRED_COUNT" ] && \
+              [ "$PENDING_COUNT" = "0" ] && \
+              [ "$OLD_TASK_COUNT" = "0" ]; then
+              STABLE_CHECKS=$((STABLE_CHECKS + 1))
+              if [ "$STABLE_CHECKS" -ge 2 ]; then
+                echo "New task definition is running without pending or old tasks."
+                exit 0
+              fi
+            else
+              STABLE_CHECKS=0
+            fi
+
+            if [ "$ROLLOUT_STATE" = "FAILED" ]; then
+              echo "$SERVICE" | jq '.deployments, .events[:10]'
+              exit 1
+            fi
+
+            sleep 15
+          done
+
+          echo "ECS deployment did not complete within 20 minutes."
+          echo "$SERVICE" | jq '.deployments, .events[:10]'
+          exit 1
