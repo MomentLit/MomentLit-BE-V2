@@ -1,5 +1,6 @@
 package com.example.space.service;
 
+import com.example.common.dto.PageResponse;
 import com.example.common.security.Role;
 import com.example.space.api.SpaceInternalApi;
 import com.example.space.dto.request.ScheduleCreateRequest;
@@ -11,38 +12,59 @@ import com.example.space.dto.request.AddressRequest;
 import com.example.space.dto.response.AddressResponse;
 import com.example.space.dto.response.AdminSpaceDetailResponse;
 import com.example.space.dto.response.AdminSpaceListResponses;
-import com.example.space.dto.response.MySpaceListResponses;
+import com.example.space.dto.response.MySpaceListResponse;
 import com.example.space.dto.response.ScheduleCreateResponse;
 import com.example.space.dto.response.ScheduleListResponses;
 import com.example.space.dto.response.SpaceAdminStatusResponse;
+import com.example.space.dto.response.SpaceCategoryCountResponse;
 import com.example.space.dto.response.SpaceCreateResponse;
 import com.example.space.dto.response.SpaceDetailResponse;
-import com.example.space.dto.response.SpaceListResponses;
+import com.example.space.dto.response.SpaceListResponse;
+import com.example.space.dto.response.SpaceAvailabilityListResponses;
+import com.example.space.dto.response.SpaceBookedDatesResponse;
 import com.example.space.dto.response.SpaceMatchingContextResponse;
+import com.example.space.dto.response.SpaceRegionCountResponse;
+import com.example.space.dto.request.SpaceAvailabilitySlotRequest;
 import com.example.space.entity.Address;
 import com.example.space.entity.ApprovalStatus;
+import com.example.space.entity.Region;
 import com.example.space.entity.Space;
+import com.example.space.entity.SpaceAvailability;
+import com.example.space.entity.SpaceBookedDate;
 import com.example.space.entity.SpaceCategory;
 import com.example.space.entity.SpaceImage;
 import com.example.space.entity.SpaceSchedule;
+import com.example.space.entity.UsageUnit;
 import com.example.space.global.client.ChatbotSyncClient;
 import com.example.space.global.exception.BadRequestException;
 import com.example.space.global.exception.ForbiddenException;
 import com.example.space.global.exception.ScheduleNotFoundException;
 import com.example.space.global.exception.SpaceNotFoundException;
 import com.example.space.repository.AddressRepository;
+import com.example.space.repository.SpaceAvailabilityRepository;
+import com.example.space.repository.SpaceBookedDateRepository;
 import com.example.space.repository.SpaceImageRepository;
 import com.example.space.repository.SpaceRepository;
 import com.example.space.repository.SpaceScheduleRepository;
+import com.example.user.api.UserInternalApi;
+import com.example.user.dto.response.UserProfileResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.JpaSort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -51,10 +73,15 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class SpaceService implements SpaceInternalApi {
 
+    private static final Set<String> ALLOWED_SPACE_SORT_PROPERTIES = Set.of("createdAt", "likeCount");
+
     private final SpaceRepository spaceRepository;
     private final SpaceImageRepository spaceImageRepository;
     private final SpaceScheduleRepository spaceScheduleRepository;
+    private final SpaceAvailabilityRepository spaceAvailabilityRepository;
+    private final SpaceBookedDateRepository spaceBookedDateRepository;
     private final AddressRepository addressRepository;
+    private final UserInternalApi userApi;
     private final ChatbotSyncClient chatbotSyncClient;
 
     @Transactional
@@ -73,7 +100,13 @@ public class SpaceService implements SpaceInternalApi {
                 request.thumbnailUrl(),
                 request.pricePerHour(),
                 request.category(),
-                request.phone()
+                request.phone(),
+                request.area(),
+                request.capacity(),
+                request.floor(),
+                request.parkingInfo(),
+                request.usageUnit(),
+                request.isDraft()
         );
 
         Space savedSpace = spaceRepository.save(space);
@@ -85,13 +118,54 @@ public class SpaceService implements SpaceInternalApi {
         return SpaceCreateResponse.from(savedSpace);
     }
 
-    public SpaceListResponses getSpaces(
+    public PageResponse<SpaceListResponse> getSpaces(
             String name,
-            SpaceCategory category
+            SpaceCategory category,
+            Region region,
+            UsageUnit usageUnit,
+            Integer minCapacity,
+            Integer maxCapacity,
+            LocalDate date,
+            Double lat,
+            Double lng,
+            Pageable pageable
     ) {
-        List<Space> spaces = findSpaces(name, category);
+        DayOfWeek dayOfWeek = date != null ? date.getDayOfWeek() : null;
 
-        return SpaceListResponses.from(spaces, findAddressesBySpaces(spaces));
+        Page<Space> spaces = (lat != null && lng != null)
+                ? spaceRepository.searchSpacesByDistance(
+                        toLikePattern(name),
+                        category,
+                        region,
+                        usageUnit,
+                        minCapacity,
+                        maxCapacity,
+                        dayOfWeek,
+                        date != null,
+                        date,
+                        lat,
+                        lng,
+                        pageable
+                )
+                : spaceRepository.searchSpaces(
+                        toLikePattern(name),
+                        category,
+                        region,
+                        usageUnit,
+                        minCapacity,
+                        maxCapacity,
+                        dayOfWeek,
+                        date != null,
+                        date,
+                        sanitizeSpaceSort(pageable)
+                );
+
+        Map<Long, Address> addresses = findAddressesBySpaces(spaces.getContent());
+
+        return PageResponse.from(
+                spaces,
+                space -> SpaceListResponse.from(space, AddressResponse.from(addresses.get(space.getAddressId())))
+        );
     }
 
     @Override
@@ -101,8 +175,9 @@ public class SpaceService implements SpaceInternalApi {
         Space space = getActiveSpace(spaceId);
         Address address = getAddress(space.getAddressId());
         List<SpaceImage> images = spaceImageRepository.findAllBySpaceId(spaceId);
+        UserProfileResponse host = userApi.getUserProfile(space.getHostId());
 
-        return SpaceDetailResponse.from(space, AddressResponse.from(address), images);
+        return SpaceDetailResponse.from(space, AddressResponse.from(address), images, host.name(), host.imageUrl());
     }
 
     @Transactional
@@ -126,8 +201,15 @@ public class SpaceService implements SpaceInternalApi {
                 request.thumbnailUrl(),
                 request.pricePerHour(),
                 request.category(),
-                request.phone()
+                request.phone(),
+                request.area(),
+                request.capacity(),
+                request.floor(),
+                request.parkingInfo(),
+                request.usageUnit()
         );
+
+        space.applyDraftTransition(request.isDraft());
 
         if (request.imageUrls() != null) {
             spaceImageRepository.deleteAllBySpaceId(spaceId);
@@ -153,14 +235,51 @@ public class SpaceService implements SpaceInternalApi {
         syncToChatbotAfterCommit(spaceId);
     }
 
-    public MySpaceListResponses getMySpaces(
+    public PageResponse<MySpaceListResponse> getMySpaces(
             String hostId,
             String name,
-            SpaceCategory category
+            SpaceCategory category,
+            Region region,
+            UsageUnit usageUnit,
+            Integer minCapacity,
+            Integer maxCapacity,
+            Pageable pageable
     ) {
-        List<Space> spaces = findMySpaces(hostId, name, category);
+        Page<Space> spaces = spaceRepository.searchMySpaces(
+                hostId,
+                toLikePattern(name),
+                category,
+                region,
+                usageUnit,
+                minCapacity,
+                maxCapacity,
+                sanitizeSpaceSort(pageable)
+        );
 
-        return MySpaceListResponses.from(spaces, findAddressesBySpaces(spaces));
+        Map<Long, Address> addresses = findAddressesBySpaces(spaces.getContent());
+
+        return PageResponse.from(
+                spaces,
+                space -> MySpaceListResponse.from(space, AddressResponse.from(addresses.get(space.getAddressId())))
+        );
+    }
+
+    public List<SpaceCategoryCountResponse> getCountsByCategory() {
+        return spaceRepository.countActiveSpacesByCategory(ApprovalStatus.APPROVED).stream()
+                .map(projection -> new SpaceCategoryCountResponse(
+                        projection.getCategory().name(),
+                        projection.getCount()
+                ))
+                .toList();
+    }
+
+    public List<SpaceRegionCountResponse> getCountsByRegion() {
+        return spaceRepository.countActiveSpacesByRegion(ApprovalStatus.APPROVED.name()).stream()
+                .map(projection -> new SpaceRegionCountResponse(
+                        projection.getRegion(),
+                        projection.getCount()
+                ))
+                .toList();
     }
 
     @Transactional
@@ -214,12 +333,27 @@ public class SpaceService implements SpaceInternalApi {
                                 endTime
                         );
 
+        // SpaceSchedule(날짜별 실제 예약 인스턴스)에 아직 해당 날짜 슬롯이 없어도,
+        // 요청 구간이 하루 안에 들어오고 호스트가 열어둔 주간 반복 가용시간
+        // (SpaceAvailability)에 포함되면 예약을 요청할 수 있게 한다. 두 모델을
+        // 자동으로 맞물리게 하는 배치는 범위 밖이라 이 보조 체크로 대체한다.
+        if (!available && startTime.toLocalDate().equals(endTime.toLocalDate())) {
+            available = spaceAvailabilityRepository
+                    .existsBySpaceIdAndDayOfWeekAndIsOpenTrueAndStartTimeLessThanEqualAndEndTimeGreaterThanEqual(
+                            spaceId,
+                            startTime.getDayOfWeek(),
+                            startTime.toLocalTime(),
+                            endTime.toLocalTime()
+                    );
+        }
+
         return new SpaceMatchingContextResponse(
                 space.getId(),
                 space.getHostId(),
                 space.getAdminStatus() == ApprovalStatus.APPROVED,
                 Boolean.TRUE.equals(space.getIsActive()),
-                available
+                available,
+                space.getCapacity()
         );
     }
 
@@ -246,6 +380,15 @@ public class SpaceService implements SpaceInternalApi {
         List<SpaceImage> images = spaceImageRepository.findAllBySpaceId(spaceId);
 
         return AdminSpaceDetailResponse.from(space, AddressResponse.from(address), images);
+    }
+
+    @Override
+    @Transactional
+    public void markSpaceBooked(Long spaceId, LocalDate date, Long matchingId) {
+        if (spaceBookedDateRepository.existsBySpaceIdAndDate(spaceId, date)) {
+            return;
+        }
+        spaceBookedDateRepository.save(new SpaceBookedDate(spaceId, date, matchingId));
     }
 
     @Override
@@ -329,6 +472,58 @@ public class SpaceService implements SpaceInternalApi {
                 .orElseThrow(() -> new ScheduleNotFoundException("일정을 찾을 수 없습니다."));
 
         spaceScheduleRepository.delete(schedule);
+    }
+
+    /**
+     * 요일×시간대 반복 가용시간 템플릿을 통째로 덮어쓴다.
+     * new_FE의 ScheduleGrid가 7일×3구간 전체 상태를 한번에 보내는 방식과 대응된다.
+     */
+    @Transactional
+    public void updateAvailability(
+            String userId,
+            Long spaceId,
+            List<SpaceAvailabilitySlotRequest> requests
+    ) {
+        Space space = getActiveSpace(spaceId);
+        validateOwner(space, userId);
+
+        if (requests == null) {
+            throw new BadRequestException("가용시간 목록은 필수입니다.");
+        }
+
+        List<SpaceAvailability> availabilities = requests.stream()
+                .map(request -> SpaceAvailability.create(
+                        spaceId,
+                        request.dayOfWeek(),
+                        request.startTime(),
+                        request.endTime(),
+                        request.isOpen()
+                ))
+                .toList();
+
+        spaceAvailabilityRepository.deleteAllBySpaceId(spaceId);
+        spaceAvailabilityRepository.saveAll(availabilities);
+    }
+
+    public SpaceAvailabilityListResponses getAvailability(
+            Long spaceId
+    ) {
+        getActiveSpace(spaceId);
+
+        List<SpaceAvailability> availabilities =
+                spaceAvailabilityRepository.findAllBySpaceIdOrderByDayOfWeekAscStartTimeAsc(spaceId);
+
+        return SpaceAvailabilityListResponses.from(availabilities);
+    }
+
+    /** 오늘 이후로 이미 승인된 예약이 찬 날짜 목록 — 공간 상세의 날짜 선택기가 미리 막아둘 수 있도록. */
+    public SpaceBookedDatesResponse getBookedDates(Long spaceId) {
+        getActiveSpace(spaceId);
+
+        List<SpaceBookedDate> bookedDates =
+                spaceBookedDateRepository.findAllBySpaceIdAndDateGreaterThanEqual(spaceId, LocalDate.now());
+
+        return SpaceBookedDatesResponse.from(bookedDates);
     }
 
     private void syncToChatbotAfterCommit(Long spaceId) {
@@ -458,61 +653,38 @@ public class SpaceService implements SpaceInternalApi {
         spaceImageRepository.saveAll(images);
     }
 
-    private List<Space> findSpaces(
-            String name,
-            SpaceCategory category
-    ) {
-        boolean hasName = name != null && !name.isBlank();
-        boolean hasCategory = category != null;
-
-        if (hasName && hasCategory) {
-            return spaceRepository.findAllByNameContainingAndCategoryAndDeletedAtIsNull(
-                    name,
-                    category
-            );
-        }
-
-        if (hasName) {
-            return spaceRepository.findAllByNameContainingAndDeletedAtIsNull(name);
-        }
-
-        if (hasCategory) {
-            return spaceRepository.findAllByCategoryAndDeletedAtIsNull(category);
-        }
-
-        return spaceRepository.findAllByDeletedAtIsNull();
+    private String blankToNull(String value) {
+        return (value == null || value.isBlank()) ? null : value;
     }
 
-    private List<Space> findMySpaces(
-            String hostId,
-            String name,
-            SpaceCategory category
-    ) {
-        boolean hasName = name != null && !name.isBlank();
-        boolean hasCategory = category != null;
+    /**
+     * JPQL의 {@code CONCAT('%', :name, '%')}로 LIKE 패턴을 만들면, PostgreSQL이 바인드
+     * 파라미터 타입을 추론하다 varchar 대신 bytea로 잘못 잡아 "operator does not exist:
+     * character varying ~~ bytea" 에러가 난다(:name이 null일 때 특히 재현됨). 패턴 조합을
+     * 애플리케이션 레이어에서 미리 끝내고 완성된 문자열을 그대로 LIKE에 바인딩하면 이 문제를 피할 수 있다.
+     */
+    private String toLikePattern(String value) {
+        String trimmed = blankToNull(value);
+        return trimmed == null ? null : "%" + trimmed + "%";
+    }
 
-        if (hasName && hasCategory) {
-            return spaceRepository.findAllByHostIdAndNameContainingAndCategoryAndDeletedAtIsNull(
-                    hostId,
-                    name,
-                    category
-            );
-        }
+    /**
+     * Space와 Address는 JPA 연관관계 없이 콤마 조인(theta join)으로 조회되므로,
+     * 둘 다 갖고 있는 컬럼명(예: createdAt)으로 그냥 정렬을 위임하면 SQL이 모호(ambiguous)해질 수 있다.
+     * 따라서 허용된 정렬 속성만 화이트리스트로 걸러 "s." 접두사를 붙인 JpaSort.unsafe로 안전하게 변환한다.
+     * (좌표 데이터가 없어 거리순 정렬은 미지원)
+     */
+    private Pageable sanitizeSpaceSort(Pageable pageable) {
+        Sort.Order order = pageable.getSort().stream()
+                .findFirst()
+                .orElse(Sort.Order.desc("createdAt"));
 
-        if (hasName) {
-            return spaceRepository.findAllByHostIdAndNameContainingAndDeletedAtIsNull(
-                    hostId,
-                    name
-            );
-        }
+        String property = ALLOWED_SPACE_SORT_PROPERTIES.contains(order.getProperty())
+                ? order.getProperty()
+                : "createdAt";
 
-        if (hasCategory) {
-            return spaceRepository.findAllByHostIdAndCategoryAndDeletedAtIsNull(
-                    hostId,
-                    category
-            );
-        }
+        Sort safeSort = JpaSort.unsafe(order.getDirection(), "s." + property);
 
-        return spaceRepository.findAllByHostIdAndDeletedAtIsNull(hostId);
+        return PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), safeSort);
     }
 }

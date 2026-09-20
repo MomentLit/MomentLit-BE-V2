@@ -21,7 +21,9 @@ public record AddressResponse(
         String detailAddress,
 
         @JsonProperty("postal_code")
-        String postalCode
+        String postalCode,
+
+        String region
 ) {
 
     public static AddressResponse from(Address address) {
@@ -32,7 +34,8 @@ public record AddressResponse(
                 address.getRoadAddress(),
                 address.getJibunAddress(),
                 address.getDetailAddress(),
-                address.getPostalCode()
+                address.getPostalCode(),
+                address.getRegion() != null ? address.getRegion().name() : null
         );
     }
 }

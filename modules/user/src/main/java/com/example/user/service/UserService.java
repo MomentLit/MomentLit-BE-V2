@@ -8,6 +8,7 @@ import com.example.user.entity.User;
 import com.example.user.global.exception.BadRequestException;
 import com.example.user.global.exception.DeletedUserException;
 import com.example.user.global.exception.DuplicateEmailException;
+import com.example.user.global.exception.DuplicatePhoneException;
 import com.example.user.global.exception.UserNotFoundException;
 import com.example.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +27,11 @@ public class UserService {
     @Transactional
     public SignUpResponse signup(SignUpRequest request) {
         if (userRepository.existsByEmail(request.email())) {
-            throw new DuplicateEmailException("이미 존재하는 이메일");
+            throw new DuplicateEmailException("이미 사용 중인 이메일입니다.");
+        }
+
+        if (userRepository.existsByPhone(request.phone())) {
+            throw new DuplicatePhoneException("이미 사용 중인 전화번호입니다.");
         }
 
         String encodedPassword = passwordEncoder.encode(request.password());
@@ -54,7 +59,7 @@ public class UserService {
     public void update(String userId, UserUpdateRequest request) {
         User user = getActiveUser(userId);
         if (request.name() != null && request.name().isBlank()) {
-            throw new BadRequestException("이름은 비어있을 수 없음");
+            throw new BadRequestException("이름을 입력해 주세요.");
         }
         user.update(request.name(), request.imageUrl(), request.phone(), request.intro());
     }
@@ -69,10 +74,10 @@ public class UserService {
     // 삭제 안 된 유저 찾기
     private User getActiveUser(String userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new UserNotFoundException("유저 없음"));
+                .orElseThrow(() -> new UserNotFoundException("존재하지 않는 사용자입니다."));
 
         if (user.getDeletedAt() != null) {
-            throw new DeletedUserException("삭제된 유저");
+            throw new DeletedUserException("탈퇴한 계정입니다.");
         }
 
         return user;

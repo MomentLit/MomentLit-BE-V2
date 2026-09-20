@@ -88,7 +88,7 @@ public class User {
 
     public void update(String name, String imageUrl, String phone, String intro) {
         if (this.deletedAt != null) {
-            throw new DeletedUserException("삭제된 유저");
+            throw new DeletedUserException("탈퇴한 계정입니다.");
         }
         if (name != null) this.name = name;
         if (imageUrl != null) this.imageUrl = imageUrl;
@@ -98,7 +98,7 @@ public class User {
 
     public void delete() {
         if (this.deletedAt != null) {
-            throw new DeletedUserException("삭제된 유저");
+            throw new DeletedUserException("탈퇴한 계정입니다.");
         }
         this.deletedAt = LocalDateTime.now();
     }

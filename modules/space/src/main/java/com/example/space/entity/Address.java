@@ -2,6 +2,8 @@ package com.example.space.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -46,6 +48,16 @@ public class Address {
     @Column(name = "postal_code")
     private String postalCode;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "region")
+    private Region region;
+
+    @Column(name = "latitude")
+    private Double latitude;
+
+    @Column(name = "longitude")
+    private Double longitude;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -71,6 +83,9 @@ public class Address {
         this.jibunAddress = jibunAddress;
         this.detailAddress = detailAddress;
         this.postalCode = postalCode;
+        this.region = Region.fromSido(sido);
+        this.latitude = RegionCoordinates.latitudeOf(this.region);
+        this.longitude = RegionCoordinates.longitudeOf(this.region);
     }
 
     public static Address create(
@@ -104,6 +119,9 @@ public class Address {
     ) {
         if (sido != null) {
             this.sido = sido;
+            this.region = Region.fromSido(sido);
+            this.latitude = RegionCoordinates.latitudeOf(this.region);
+            this.longitude = RegionCoordinates.longitudeOf(this.region);
         }
         if (sigungu != null) {
             this.sigungu = sigungu;

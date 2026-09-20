@@ -1,11 +1,16 @@
 package com.example.like.controller;
 
 import com.example.common.dto.ApiResponse;
+import com.example.common.dto.PageResponse;
 import com.example.common.security.UserPrincipal;
 import com.example.common.util.ResponseUtil;
 import com.example.like.dto.response.SpaceLikeResponse;
 import com.example.like.service.SpaceLikeService;
+import com.example.space.dto.response.SpaceListResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -45,5 +50,14 @@ public class SpaceLikeController {
     ) {
         SpaceLikeResponse response = spaceLikeService.getStatus(principal.userId(), spaceId);
         return ResponseEntity.ok(ResponseUtil.success("select space like status", response));
+    }
+
+    @GetMapping("/spaces/me/liked")
+    public ResponseEntity<ApiResponse<PageResponse<SpaceListResponse>>> getLikedSpaces(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        PageResponse<SpaceListResponse> response = spaceLikeService.getLikedSpaces(principal.userId(), pageable);
+        return ResponseEntity.ok(ResponseUtil.success("list liked spaces", response));
     }
 }

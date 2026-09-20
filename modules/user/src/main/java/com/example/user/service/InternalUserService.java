@@ -4,6 +4,7 @@ import com.example.user.dto.request.SignInRequest;
 import com.example.user.dto.request.UserOauthRequest;
 import com.example.user.dto.response.UserAuthResponse;
 import com.example.user.dto.response.UserNameResponse;
+import com.example.user.dto.response.UserProfileResponse;
 import com.example.user.api.UserInternalApi;
 import com.example.user.entity.User;
 import com.example.user.global.exception.BadRequestException;
@@ -28,7 +29,7 @@ public class InternalUserService implements UserInternalApi {
     @Transactional(readOnly = true)
     public UserAuthResponse authenticate(SignInRequest request) {
         User user = userRepository.findByEmail(request.email())
-                .orElseThrow(() -> new UserNotFoundException("유저 없음"));
+                .orElseThrow(() -> new UserNotFoundException("존재하지 않는 사용자입니다."));
 
         validateActiveUser(user);
         validatePassword(request.password(), user.getPassword());
@@ -48,17 +49,27 @@ public class InternalUserService implements UserInternalApi {
     @Transactional(readOnly = true)
     public UserNameResponse getUserName(String userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new UserNotFoundException("유저 없음"));
+                .orElseThrow(() -> new UserNotFoundException("존재하지 않는 사용자입니다."));
 
         validateActiveUser(user);
 
         return UserNameResponse.from(user);
     }
 
+    @Transactional(readOnly = true)
+    public UserProfileResponse getUserProfile(String userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException("존재하지 않는 사용자입니다."));
+
+        validateActiveUser(user);
+
+        return UserProfileResponse.from(user);
+    }
+
     // 삭제 여부 확인
     private void validateActiveUser(User user) {
         if (user.getDeletedAt() != null) {
-            throw new DeletedUserException("삭제된 유저");
+            throw new DeletedUserException("탈퇴한 계정입니다.");
         }
     }
 

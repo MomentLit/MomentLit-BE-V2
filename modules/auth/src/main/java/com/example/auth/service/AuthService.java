@@ -22,7 +22,9 @@ import com.example.auth.global.exception.NaverOauthException;
 import com.example.auth.global.exception.UnauthorizedException;
 import com.example.user.api.UserInternalApi;
 import com.example.user.dto.response.UserAuthResponse;
+import com.example.user.global.exception.DeletedUserException;
 import com.example.user.global.exception.InvalidPasswordException;
+import com.example.user.global.exception.UserNotFoundException;
 import java.net.URI;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -83,14 +85,16 @@ public class AuthService {
         );
     }
 
-    // User 모듈이 비밀번호 불일치를 InvalidPasswordException으로 알려주면,
-    // 기존에 UserServiceClient가 401 응답을 번역하던 것과 같은 메시지로 맞춰줍니다.
+    // User 모듈이 "이메일 없음"/"삭제된 계정"/"비밀번호 불일치"를 서로 다른 예외(그리고
+    // 서로 다른 HTTP 상태 코드: 404/410/401)로 알려주는데, 그걸 그대로 흘려보내면 로그인
+    // 실패 응답만 보고도 "이 이메일로 가입된 계정이 있는지"를 알아낼 수 있다(계정 존재
+    // 여부 추측 공격). 그래서 셋 다 여기서 잡아 동일한 401 + 동일한 문구로 통일한다.
     private UserAuthResponse authenticateWithUser(SignInRequest request) {
         try {
             return userApi.authenticate(
                     new com.example.user.dto.request.SignInRequest(request.email(), request.password())
             );
-        } catch (InvalidPasswordException e) {
+        } catch (InvalidPasswordException | UserNotFoundException | DeletedUserException e) {
             throw new UnauthorizedException("이메일 또는 비밀번호가 일치하지 않습니다.");
         }
     }
@@ -109,7 +113,7 @@ public class AuthService {
                 googleOauthClient.requestToken(code);
 
         if (googleToken == null || !StringUtils.hasText(googleToken.accessToken())) {
-            throw new GoogleOauthException("Google Access Token을 발급받을 수 없습니다.");
+            throw new GoogleOauthException("Google 로그인에 실패했습니다. 다시 시도해 주세요.");
         }
 
         GoogleUserInfoResponse googleUser =
@@ -130,7 +134,7 @@ public class AuthService {
                 naverOauthClient.requestToken(code, state);
 
         if (naverToken == null || !StringUtils.hasText(naverToken.accessToken())) {
-            throw new NaverOauthException("Naver Access Token을 발급받을 수 없습니다.");
+            throw new NaverOauthException("Naver 로그인에 실패했습니다. 다시 시도해 주세요.");
         }
 
         NaverUserInfoResponse naverUser =
@@ -151,7 +155,7 @@ public class AuthService {
                 kakaoOauthClient.requestToken(code);
 
         if (kakaoToken == null || !StringUtils.hasText(kakaoToken.accessToken())) {
-            throw new KakaoOauthException("Kakao Access Token을 발급받을 수 없습니다.");
+            throw new KakaoOauthException("Kakao 로그인에 실패했습니다. 다시 시도해 주세요.");
         }
 
         KakaoUserInfoResponse kakaoUser =

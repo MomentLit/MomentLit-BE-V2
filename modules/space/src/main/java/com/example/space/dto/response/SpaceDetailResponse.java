@@ -13,6 +13,12 @@ public record SpaceDetailResponse(
         @JsonProperty("host_id")
         String hostId,
 
+        @JsonProperty("host_name")
+        String hostName,
+
+        @JsonProperty("host_image_url")
+        String hostImageUrl,
+
         String name,
 
         String description,
@@ -34,17 +40,36 @@ public record SpaceDetailResponse(
         @JsonProperty("like_count")
         Integer likeCount,
 
-        String category
+        String category,
+
+        Double area,
+
+        Integer capacity,
+
+        String floor,
+
+        @JsonProperty("parking_info")
+        String parkingInfo,
+
+        @JsonProperty("usage_unit")
+        String usageUnit,
+
+        @JsonProperty("admin_status")
+        String adminStatus
 ) {
 
     public static SpaceDetailResponse from(
             Space space,
             AddressResponse address,
-            List<SpaceImage> images
+            List<SpaceImage> images,
+            String hostName,
+            String hostImageUrl
     ) {
         return new SpaceDetailResponse(
                 space.getId(),
                 space.getHostId(),
+                hostName,
+                hostImageUrl,
                 space.getName(),
                 space.getDescription(),
                 space.getAiSummary(),
@@ -55,7 +80,13 @@ public record SpaceDetailResponse(
                         .toList(),
                 space.getPricePerHour(),
                 space.getLikeCount(),
-                space.getCategory().name()
+                space.getCategory().name(),
+                space.getArea(),
+                space.getCapacity(),
+                space.getFloor(),
+                space.getParkingInfo(),
+                space.getUsageUnit() != null ? space.getUsageUnit().name() : null,
+                space.getAdminStatus().name()
         );
     }
 }

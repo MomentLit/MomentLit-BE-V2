@@ -42,7 +42,7 @@ public class AuthValidator {
         }
 
         if (!StringUtils.hasText(profile.email())) {
-            throw new BadRequestException(providerName + " 이메일 제공 동의가 필요합니다.");
+            throw new BadRequestException(providerName + " 로그인 시 이메일 제공에 동의해야 가입할 수 있어요.");
         }
     }
 

@@ -1,6 +1,8 @@
 package com.example.matching.service;
 
+import com.example.alarm.api.AlarmInternalApi;
 import com.example.matching.dto.request.MatchingCreateRequest;
+import com.example.matching.dto.response.HostStatsResponse;
 import com.example.matching.dto.response.InternalMatchingResponse;
 import com.example.matching.dto.response.MatchingCreateResponse;
 import com.example.matching.dto.response.MatchingListResponse;
@@ -19,6 +21,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -30,6 +33,7 @@ public class MatchingService implements MatchingInternalApi {
 
     private final MatchingRepository matchingRepository;
     private final SpaceInternalApi spaceApi;
+    private final AlarmInternalApi alarmApi;
 
     @Transactional
     public MatchingCreateResponse create(String userId, MatchingCreateRequest request) {
@@ -37,7 +41,7 @@ public class MatchingService implements MatchingInternalApi {
         LocalDateTime endTime = parseTime(request.endTime());
 
         if (!endTime.isAfter(startTime)) {
-            throw new BadRequestException("종료 시간은 시작 시간 이후여야 함");
+            throw new BadRequestException("종료 시간은 시작 시간 이후여야 합니다.");
         }
 
         Integer totalPrice = parsePrice(request.totalPrice());
@@ -46,6 +50,7 @@ public class MatchingService implements MatchingInternalApi {
                 spaceApi.getMatchingContext(request.spaceId(), startTime, endTime);
 
         validateSpaceForMatching(userId, space);
+        validateGuestCount(space, request.guestCount());
 
         Matching matching = Matching.create(
                 request.spaceId(),
@@ -53,10 +58,12 @@ public class MatchingService implements MatchingInternalApi {
                 space.hostId(),
                 startTime,
                 endTime,
-                totalPrice
+                totalPrice,
+                request.guestCount()
         );
 
         matchingRepository.save(matching);
+        alarmApi.createAlarm(space.hostId(), matching.getId(), "새로운 예약 요청이 도착했습니다.");
 
         return MatchingCreateResponse.from(matching);
     }
@@ -100,18 +107,50 @@ public class MatchingService implements MatchingInternalApi {
 
         validateNoApprovedOverlap(matching, spaceMatchings);
         matching.approve(userId);
+        spaceApi.markSpaceBooked(matching.getSpaceId(), matching.getStartTime().toLocalDate(), matching.getId());
+        alarmApi.createAlarm(matching.getSellerId(), matching.getId(), "예약 요청이 승인되었습니다.");
     }
 
     @Transactional
     public void reject(String userId, Long matchingId) {
         Matching matching = getMatching(matchingId);
         matching.reject(userId);
+        alarmApi.createAlarm(matching.getSellerId(), matching.getId(), "예약 요청이 거절되었습니다.");
     }
 
     @Transactional
     public void cancel(String userId, Long matchingId) {
         Matching matching = getMatching(matchingId);
         matching.cancel(userId);
+        alarmApi.createAlarm(matching.getHostId(), matching.getId(), "예약 요청이 취소되었습니다.");
+    }
+
+    /**
+     * 호스트별 응답률 / 평균 응답시간 집계.
+     * 응답률 = (APPROVED+REJECTED 처리 건수) / (해당 호스트 전체 매칭 건수, 모두 REQUESTED로 시작) x 100
+     * 평균 응답시간 = 처리된 매칭들의 (updatedAt - createdAt) 평균(분)
+     */
+    @Transactional(readOnly = true)
+    public HostStatsResponse getHostStats(String hostId) {
+        List<MatchingStatus> processedStatuses = List.of(MatchingStatus.APPROVED, MatchingStatus.REJECTED);
+
+        long totalRequestedCount = matchingRepository.countByHostId(hostId);
+        long processedCount = matchingRepository.countByHostIdAndStatusIn(hostId, processedStatuses);
+
+        List<Matching> processedMatchings =
+                matchingRepository.findByHostIdAndStatusIn(hostId, processedStatuses);
+
+        Double avgResponseMinutes = processedMatchings.isEmpty()
+                ? null
+                : processedMatchings.stream()
+                        .mapToLong(matching -> Duration.between(
+                                matching.getCreatedAt(),
+                                matching.getUpdatedAt()
+                        ).toMinutes())
+                        .average()
+                        .orElse(0.0);
+
+        return HostStatsResponse.of(hostId, totalRequestedCount, processedCount, avgResponseMinutes);
     }
 
     private MatchingListResponse toListResponse(List<Matching> matchings) {
@@ -124,7 +163,7 @@ public class MatchingService implements MatchingInternalApi {
 
     private Matching getMatching(Long matchingId) {
         return matchingRepository.findById(matchingId)
-                .orElseThrow(() -> new MatchingNotFoundException("매칭 없음"));
+                .orElseThrow(() -> new MatchingNotFoundException("존재하지 않는 예약 요청입니다."));
     }
 
     private void validateSpaceForMatching(
@@ -145,6 +184,12 @@ public class MatchingService implements MatchingInternalApi {
 
         if (sellerId.equals(space.hostId())) {
             throw new InvalidMatchingStateException("본인 공간에는 매칭을 요청할 수 없습니다.");
+        }
+    }
+
+    private void validateGuestCount(SpaceMatchingContextResponse space, Integer guestCount) {
+        if (guestCount != null && space.capacity() != null && guestCount > space.capacity()) {
+            throw new BadRequestException("최대 수용 인원(" + space.capacity() + "명)을 초과했습니다.");
         }
     }
 
@@ -176,7 +221,7 @@ public class MatchingService implements MatchingInternalApi {
             try {
                 return LocalDateTime.parse(value);
             } catch (Exception ignored) {
-                throw new BadRequestException("시간 형식이 올바르지 않음");
+                throw new BadRequestException("시간 형식이 올바르지 않습니다.");
             }
         }
     }
@@ -185,11 +230,11 @@ public class MatchingService implements MatchingInternalApi {
         try {
             Integer totalPrice = Integer.valueOf(value);
             if (totalPrice < 0) {
-                throw new BadRequestException("총 금액은 음수일 수 없음");
+                throw new BadRequestException("총 금액은 음수일 수 없습니다.");
             }
             return totalPrice;
         } catch (NumberFormatException e) {
-            throw new BadRequestException("총 금액 형식이 올바르지 않음");
+            throw new BadRequestException("총 금액 형식이 올바르지 않습니다.");
         }
     }
 }

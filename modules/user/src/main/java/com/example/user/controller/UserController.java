@@ -46,7 +46,7 @@ public class UserController {
     @PatchMapping("/me")
     public ResponseEntity<Void> update(
             @AuthenticationPrincipal UserPrincipal principal,
-            @RequestBody UserUpdateRequest request
+            @Valid @RequestBody UserUpdateRequest request
     ) {
         userService.update(principal.userId(), request);
 

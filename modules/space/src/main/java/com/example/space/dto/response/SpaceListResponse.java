@@ -20,7 +20,19 @@ public record SpaceListResponse(
         @JsonProperty("like_count")
         Integer likeCount,
 
-        String category
+        String category,
+
+        Double area,
+
+        Integer capacity,
+
+        String floor,
+
+        @JsonProperty("parking_info")
+        String parkingInfo,
+
+        @JsonProperty("usage_unit")
+        String usageUnit
 ) {
 
     public static SpaceListResponse from(
@@ -34,7 +46,12 @@ public record SpaceListResponse(
                 space.getThumbnailUrl(),
                 space.getPricePerHour(),
                 space.getLikeCount(),
-                space.getCategory().name()
+                space.getCategory().name(),
+                space.getArea(),
+                space.getCapacity(),
+                space.getFloor(),
+                space.getParkingInfo(),
+                space.getUsageUnit() != null ? space.getUsageUnit().name() : null
         );
     }
 }

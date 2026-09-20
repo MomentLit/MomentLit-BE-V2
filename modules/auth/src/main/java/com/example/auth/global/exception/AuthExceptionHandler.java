@@ -59,27 +59,11 @@ public class AuthExceptionHandler {
                 .body(ApiResponse.fail("[ERROR: Auth/Oauth/Kakao] " + e.getMessage()));
     }
 
-    // User 모듈을 인터페이스로 직접 호출하면서, 예전에 UserServiceClient가 HTTP 응답 바디에서
-    // 그대로 forward하던 User 쪽 예외 메시지를 동일한 포맷으로 재현합니다.
-    @ExceptionHandler(com.example.user.global.exception.UserNotFoundException.class)
-    public ResponseEntity<ApiResponse<String>> userNotFoundHandleException(
-            com.example.user.global.exception.UserNotFoundException e
-    ) {
-        log.warn("UserNotFoundException: {}", e.getMessage());
-
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(ApiResponse.fail("[ERROR: User/NotFound] " + e.getMessage()));
-    }
-
-    @ExceptionHandler(com.example.user.global.exception.DeletedUserException.class)
-    public ResponseEntity<ApiResponse<String>> deletedUserHandleException(
-            com.example.user.global.exception.DeletedUserException e
-    ) {
-        log.warn("DeletedUserException: {}", e.getMessage());
-
-        return ResponseEntity.status(HttpStatus.GONE)
-                .body(ApiResponse.fail("[ERROR: User/Deleted] " + e.getMessage()));
-    }
+    // 로그인 경로에서 User 모듈이 던지는 UserNotFoundException/DeletedUserException은
+    // AuthService.authenticateWithUser()가 전부 붙잡아 401(이메일 또는 비밀번호가 일치하지
+    // 않습니다)로 통일한다 — 계정 존재 여부가 상태 코드로 새어나가지 않게 하기 위해서다.
+    // (그래서 이 두 예외의 핸들러는 여기 없다: auth 모듈 안에서 더는 밖으로 새어나올 경로가
+    // 없다 — OAuth 로그인/가입 경로는 애초에 이 두 예외를 던지지 않는다.)
 
     @ExceptionHandler(com.example.user.global.exception.DuplicateEmailException.class)
     public ResponseEntity<ApiResponse<String>> duplicateEmailHandleException(

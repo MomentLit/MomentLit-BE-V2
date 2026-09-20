@@ -1,5 +1,6 @@
 package com.example.popup.service;
 
+import com.example.common.dto.PageResponse;
 import com.example.matching.api.MatchingInternalApi;
 import com.example.matching.dto.response.InternalMatchingResponse;
 import com.example.matching.entity.MatchingStatus;
@@ -14,6 +15,8 @@ import com.example.popup.repository.PopupRepository;
 import com.example.space.api.SpaceInternalApi;
 import com.example.space.dto.response.SpaceDetailResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -66,8 +69,13 @@ public class PopupService {
         return PopupCreateResponse.from(savedPopup);
     }
 
-    public PopupListResponses getPopups() {
-        return toListResponses(popupRepository.findAllByOrderByCreatedAtDesc());
+    public PageResponse<PopupListResponse> getPopups(Pageable pageable) {
+        Page<Popup> popups = popupRepository.findAll(pageable);
+
+        return PageResponse.from(
+                popups,
+                popup -> PopupListResponse.from(popup, spaceApi.getSpace(popup.getSpaceId()))
+        );
     }
 
     public PopupListResponses getRecommendations() {

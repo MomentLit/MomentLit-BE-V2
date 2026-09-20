@@ -10,6 +10,7 @@ import com.example.auth.service.AuthService;
 import com.example.common.dto.ApiResponse;
 import com.example.common.util.ResponseUtil;
 import java.net.URI;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -19,15 +20,18 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.util.UriComponentsBuilder;
 
 @RestController
 @RequestMapping("/auth")
 public class AuthController {
 
     private final AuthService authService;
+    private final String frontendBaseUrl;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, @Value("${frontend.base-url}") String frontendBaseUrl) {
         this.authService = authService;
+        this.frontendBaseUrl = frontendBaseUrl;
     }
 
     @PostMapping("/signin")
@@ -47,14 +51,14 @@ public class AuthController {
     }
 
     @GetMapping("/oauth/google/callback")
-    public ResponseEntity<ApiResponse<OauthGoogleCallbackResponse>> googleOauthCallback(
+    public ResponseEntity<Void> googleOauthCallback(
             @RequestParam String code,
             @RequestParam(required = false) String state
     ) {
         // Google이 내려준 code로 사용자 정보를 확인한 뒤 JWT를 발급합니다.
         OauthGoogleCallbackResponse response =
                 authService.loginWithGoogle(code, state);
-        return ResponseEntity.ok(ResponseUtil.success("Google 로그인에 성공했습니다.", response));
+        return redirectToFrontend(response);
     }
 
     @GetMapping("/oauth/naver")
@@ -66,13 +70,13 @@ public class AuthController {
     }
 
     @GetMapping("/oauth/naver/callback")
-    public ResponseEntity<ApiResponse<OauthGoogleCallbackResponse>> naverOauthCallback(
+    public ResponseEntity<Void> naverOauthCallback(
             @RequestParam String code,
             @RequestParam(required = false) String state
     ) {
         OauthGoogleCallbackResponse response =
                 authService.loginWithNaver(code, state);
-        return ResponseEntity.ok(ResponseUtil.success("Naver 로그인에 성공했습니다.", response));
+        return redirectToFrontend(response);
     }
 
     @GetMapping("/oauth/kakao")
@@ -84,13 +88,13 @@ public class AuthController {
     }
 
     @GetMapping("/oauth/kakao/callback")
-    public ResponseEntity<ApiResponse<OauthGoogleCallbackResponse>> kakaoOauthCallback(
+    public ResponseEntity<Void> kakaoOauthCallback(
             @RequestParam String code,
             @RequestParam(required = false) String state
     ) {
         OauthGoogleCallbackResponse response =
                 authService.loginWithKakao(code, state);
-        return ResponseEntity.ok(ResponseUtil.success("Kakao 로그인에 성공했습니다.", response));
+        return redirectToFrontend(response);
     }
 
     @PostMapping("/refresh")
@@ -105,5 +109,21 @@ public class AuthController {
         // 로그아웃은 클라이언트가 가진 Refresh Token을 저장소에서 제거하는 방식입니다.
         authService.logout(request);
         return ResponseEntity.ok(ResponseUtil.success("로그아웃에 성공했습니다."));
+    }
+
+    /**
+     * OAuth redirect-uri는 프론트가 아니라 이 백엔드 컨트롤러를 직접 가리키므로(각 provider 콘솔에
+     * 등록된 값), 여기서 JWT를 발급한 뒤 프론트로 다시 302 리다이렉트하며 토큰을 쿼리 파라미터로 넘긴다.
+     * 프론트의 콜백 페이지가 이 토큰을 읽어 로그인 상태를 완성한다.
+     */
+    private ResponseEntity<Void> redirectToFrontend(OauthGoogleCallbackResponse response) {
+        URI redirectUri = UriComponentsBuilder.fromUriString(frontendBaseUrl)
+                .path("/auth/callback")
+                .queryParam("access_token", response.accessToken())
+                .queryParam("refresh_token", response.refreshToken())
+                .build()
+                .encode()
+                .toUri();
+        return ResponseEntity.status(HttpStatus.FOUND).location(redirectUri).build();
     }
 }

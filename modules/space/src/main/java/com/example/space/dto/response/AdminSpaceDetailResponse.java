@@ -46,7 +46,19 @@ public record AdminSpaceDetailResponse(
         LocalDateTime createdAt,
 
         @JsonProperty("updated_at")
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+
+        Double area,
+
+        Integer capacity,
+
+        String floor,
+
+        @JsonProperty("parking_info")
+        String parkingInfo,
+
+        @JsonProperty("usage_unit")
+        String usageUnit
 ) {
 
     public static AdminSpaceDetailResponse from(
@@ -71,7 +83,12 @@ public record AdminSpaceDetailResponse(
                 space.getCategory().name(),
                 space.getPhone(),
                 space.getCreatedAt(),
-                space.getUpdatedAt()
+                space.getUpdatedAt(),
+                space.getArea(),
+                space.getCapacity(),
+                space.getFloor(),
+                space.getParkingInfo(),
+                space.getUsageUnit() != null ? space.getUsageUnit().name() : null
         );
     }
 }

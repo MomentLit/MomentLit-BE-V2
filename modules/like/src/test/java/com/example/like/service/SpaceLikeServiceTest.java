@@ -72,7 +72,13 @@ class SpaceLikeServiceTest {
                 "https://example.com/thumbnail.jpg",
                 10_000,
                 SpaceCategory.CAFE,
-                "010-1234-5678"
+                "010-1234-5678",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
         );
     }
 }

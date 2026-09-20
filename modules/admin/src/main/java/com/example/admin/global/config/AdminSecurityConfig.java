@@ -49,6 +49,9 @@ public class AdminSecurityConfig {
                         .requestMatchers(HttpMethod.PATCH, "/spaces/*/schedule/*").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/spaces/*/schedule/*").authenticated()
 
+                        .requestMatchers("/admin/spaces/**").hasRole("ADMIN")
+                        .requestMatchers("/admin/suggestions/**").hasRole("ADMIN")
+
                         .anyRequest().permitAll()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
