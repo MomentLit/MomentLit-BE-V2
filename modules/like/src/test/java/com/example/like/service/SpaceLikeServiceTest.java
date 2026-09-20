@@ -6,6 +6,7 @@ import com.example.like.global.exception.DuplicateSpaceLikeException;
 import com.example.like.repository.SpaceLikeRepository;
 import com.example.space.entity.Space;
 import com.example.space.entity.SpaceCategory;
+import com.example.space.repository.AddressRepository;
 import com.example.space.repository.SpaceRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -33,11 +34,14 @@ class SpaceLikeServiceTest {
     @Mock
     private SpaceRepository spaceRepository;
 
+    @Mock
+    private AddressRepository addressRepository;
+
     private SpaceLikeService spaceLikeService;
 
     @BeforeEach
     void setUp() {
-        spaceLikeService = new SpaceLikeService(spaceLikeRepository, spaceRepository);
+        spaceLikeService = new SpaceLikeService(spaceLikeRepository, spaceRepository, addressRepository);
     }
 
     @Test
