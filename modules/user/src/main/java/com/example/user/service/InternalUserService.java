@@ -16,6 +16,7 @@ import com.example.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
@@ -46,7 +47,11 @@ public class InternalUserService implements UserInternalApi {
         return UserAuthResponse.from(user);
     }
 
-    @Transactional(readOnly = true)
+    // REQUIRES_NEW: 다른 모듈이 자기 트랜잭션 안에서 이 메서드를 호출했을 때, 여기서 던진
+    // UserNotFoundException 때문에 그 바깥 트랜잭션까지 rollback-only로 오염되면 안 된다 —
+    // 호출부가 예외를 잡아서 정상 응답을 만들어도 커밋 시점에 UnexpectedRollbackException으로
+    // 터지는 문제가 실제로 있었다(건의함 관리자 목록에서 탈퇴 계정 처리 시 발견).
+    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
     public UserNameResponse getUserName(String userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException("존재하지 않는 사용자입니다."));
@@ -56,7 +61,7 @@ public class InternalUserService implements UserInternalApi {
         return UserNameResponse.from(user);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
     public UserProfileResponse getUserProfile(String userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException("존재하지 않는 사용자입니다."));

@@ -10,6 +10,7 @@ import com.example.suggestion.global.exception.SuggestionForbiddenException;
 import com.example.suggestion.global.exception.SuggestionNotFoundException;
 import com.example.suggestion.repository.SuggestionRepository;
 import com.example.user.api.UserInternalApi;
+import com.example.user.global.exception.UserNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -51,8 +52,15 @@ public class SuggestionService {
         return toAdminResponse(suggestion);
     }
 
+    // 유저 모듈과 FK로 묶여있지 않아서, 건의를 남긴 계정이 나중에 지워져도 이 참조는 그대로
+    // 남는다. 그 경우에도 목록 전체가 죽지 않도록 그 한 건만 표시용 문구로 대체한다.
     private SuggestionAdminResponse toAdminResponse(Suggestion suggestion) {
-        String userName = userInternalApi.getUserName(suggestion.getUserId()).name();
+        String userName;
+        try {
+            userName = userInternalApi.getUserName(suggestion.getUserId()).name();
+        } catch (UserNotFoundException e) {
+            userName = "(탈퇴한 사용자)";
+        }
         return SuggestionAdminResponse.from(suggestion, userName);
     }
 
