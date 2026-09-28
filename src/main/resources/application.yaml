@@ -22,6 +22,13 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+    # 도메인별 PostgreSQL schema도 Flyway 관리 범위에 포함한다.
+    # baseline 시 public만 비어 있다고 오판하지 않도록 public을 첫 schema로 유지한다.
+    schemas: public, users, spaces, matchings, alarms, popups, chating, reviews, likes, suggestions
+    # 기존 스키마를 Flyway 관리에 편입할 때만 ECS 환경변수로 일회성 활성화한다.
+    # 기본값은 false/1이므로 새 DB는 V1부터 정상적으로 생성된다.
+    baseline-on-migrate: ${FLYWAY_BASELINE_ON_MIGRATE:false}
+    baseline-version: ${FLYWAY_BASELINE_VERSION:1}
   data:
     redis:
       host: "${REDIS_HOST:localhost}"
