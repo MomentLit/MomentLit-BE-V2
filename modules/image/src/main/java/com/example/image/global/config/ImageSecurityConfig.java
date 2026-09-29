@@ -34,6 +34,7 @@ public class ImageSecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/images/upload").authenticated()
+                        .requestMatchers("/images/panorama/**").authenticated()
                         .anyRequest().permitAll()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)

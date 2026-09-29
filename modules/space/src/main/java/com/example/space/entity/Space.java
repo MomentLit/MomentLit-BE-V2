@@ -36,6 +36,9 @@ public class Space {
     @Column(name = "thumbnail_url")
     private String thumbnailUrl;
 
+    @Column(name = "panorama_url")
+    private String panoramaUrl;
+
     @Column(name = "price_per_hour", nullable = false)
     private Integer pricePerHour;
 
@@ -207,6 +210,18 @@ public class Space {
         if (usageUnit != null) {
             this.usageUnit = usageUnit;
         }
+    }
+
+    /**
+     * 360도 사진 변경.
+     * null이면 변경하지 않고, 빈 문자열이면 삭제하며, 그 외에는 새 URL로 교체한다.
+     */
+    public void updatePanoramaUrl(String panoramaUrl) {
+        if (panoramaUrl == null) {
+            return;
+        }
+
+        this.panoramaUrl = panoramaUrl.isBlank() ? null : panoramaUrl;
     }
 
     public void updateAdminStatus(ApprovalStatus adminStatus) {

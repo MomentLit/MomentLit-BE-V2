@@ -26,6 +26,10 @@ public record SpaceUpdateRequest(
         @JsonProperty("image_urls")
         List<String> imageUrls,
 
+        // null이면 변경 없음, 빈 문자열이면 360도 사진 삭제
+        @JsonProperty("panorama_url")
+        String panoramaUrl,
+
         @Positive
         @JsonProperty("price_per_hour")
         Integer pricePerHour,
