@@ -53,4 +53,17 @@ public record SpaceUpdateRequest(
         @JsonProperty("is_draft")
         Boolean isDraft
 ) {
+    /** 소개 문구의 근거가 되는 필드가 하나라도 바뀌면 비동기 재생성한다. */
+    public boolean hasAiSummarySourceChanges() {
+        return name != null
+                || description != null
+                || address != null
+                || pricePerHour != null
+                || category != null
+                || area != null
+                || capacity != null
+                || floor != null
+                || parkingInfo != null
+                || usageUnit != null;
+    }
 }

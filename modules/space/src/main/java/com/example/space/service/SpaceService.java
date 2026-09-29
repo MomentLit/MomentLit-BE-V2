@@ -26,6 +26,7 @@ import com.example.space.dto.response.SpaceMatchingContextResponse;
 import com.example.space.dto.response.SpaceRegionCountResponse;
 import com.example.space.dto.request.SpaceAvailabilitySlotRequest;
 import com.example.space.entity.Address;
+import com.example.space.entity.AiSummaryOutboxEvent;
 import com.example.space.entity.ApprovalStatus;
 import com.example.space.entity.Region;
 import com.example.space.entity.Space;
@@ -41,6 +42,7 @@ import com.example.space.global.exception.ForbiddenException;
 import com.example.space.global.exception.ScheduleNotFoundException;
 import com.example.space.global.exception.SpaceNotFoundException;
 import com.example.space.repository.AddressRepository;
+import com.example.space.repository.AiSummaryOutboxRepository;
 import com.example.space.repository.SpaceAvailabilityRepository;
 import com.example.space.repository.SpaceBookedDateRepository;
 import com.example.space.repository.SpaceImageRepository;
@@ -81,6 +83,7 @@ public class SpaceService implements SpaceInternalApi {
     private final SpaceAvailabilityRepository spaceAvailabilityRepository;
     private final SpaceBookedDateRepository spaceBookedDateRepository;
     private final AddressRepository addressRepository;
+    private final AiSummaryOutboxRepository aiSummaryOutboxRepository;
     private final UserInternalApi userApi;
     private final ChatbotSyncClient chatbotSyncClient;
 
@@ -113,7 +116,7 @@ public class SpaceService implements SpaceInternalApi {
 
         saveImages(savedSpace.getId(), request.imageUrls());
 
-        syncToChatbotAfterCommit(savedSpace.getId());
+        enqueueAiSummary(savedSpace);
 
         return SpaceCreateResponse.from(savedSpace);
     }
@@ -197,7 +200,7 @@ public class SpaceService implements SpaceInternalApi {
         space.update(
                 request.name(),
                 request.description(),
-                request.aiSummary(),
+                null,
                 request.thumbnailUrl(),
                 request.pricePerHour(),
                 request.category(),
@@ -216,7 +219,17 @@ public class SpaceService implements SpaceInternalApi {
             saveImages(spaceId, request.imageUrls());
         }
 
-        syncToChatbotAfterCommit(spaceId);
+        boolean aiSummaryQueued = request.hasAiSummarySourceChanges();
+        if (aiSummaryQueued) {
+            space.requestAiSummary();
+            enqueueAiSummary(space);
+        }
+
+        // 소개 입력이 바뀐 경우에는 AI 결과 저장 뒤 워커가 한 번만 인덱스를 갱신한다.
+        // 그렇지 않은 수정(예: 이미지)은 기존 즉시 동기화 규약을 유지한다.
+        if (!aiSummaryQueued) {
+            syncToChatbotAfterCommit(spaceId);
+        }
     }
 
     @Transactional
@@ -533,6 +546,13 @@ public class SpaceService implements SpaceInternalApi {
                 chatbotSyncClient.syncSpace(spaceId);
             }
         });
+    }
+
+    private void enqueueAiSummary(Space space) {
+        aiSummaryOutboxRepository.save(AiSummaryOutboxEvent.pending(
+                space.getId(),
+                space.getAiSummaryVersion()
+        ));
     }
 
     private Space getActiveSpace(Long spaceId) {

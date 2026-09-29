@@ -26,6 +26,9 @@ public record SpaceDetailResponse(
         @JsonProperty("ai_summary")
         String aiSummary,
 
+        @JsonProperty("ai_summary_status")
+        String aiSummaryStatus,
+
         AddressResponse address,
 
         @JsonProperty("thumbnail_url")
@@ -73,6 +76,7 @@ public record SpaceDetailResponse(
                 space.getName(),
                 space.getDescription(),
                 space.getAiSummary(),
+                space.getAiSummaryStatus().name(),
                 address,
                 space.getThumbnailUrl(),
                 images.stream()

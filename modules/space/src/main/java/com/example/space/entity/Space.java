@@ -30,6 +30,13 @@ public class Space {
     @Column(name = "ai_summary", columnDefinition = "TEXT")
     private String aiSummary;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "ai_summary_status", nullable = false)
+    private AiSummaryStatus aiSummaryStatus;
+
+    @Column(name = "ai_summary_version", nullable = false)
+    private Long aiSummaryVersion;
+
     @Column(name = "address_id", nullable = false)
     private Long addressId;
 
@@ -101,6 +108,8 @@ public class Space {
         this.name = name;
         this.description = description;
         this.aiSummary = aiSummary;
+        this.aiSummaryStatus = AiSummaryStatus.PENDING;
+        this.aiSummaryVersion = 1L;
         this.addressId = addressId;
         this.thumbnailUrl = thumbnailUrl;
         this.pricePerHour = pricePerHour;
@@ -211,6 +220,28 @@ public class Space {
 
     public void updateAdminStatus(ApprovalStatus adminStatus) {
         this.adminStatus = adminStatus;
+    }
+
+    /** 요약 입력이 바뀌면 새 버전을 발급한다. 늦게 도착한 이전 AI 응답은 이 버전을 통과할 수 없다. */
+    public void requestAiSummary() {
+        this.aiSummary = null;
+        this.aiSummaryStatus = AiSummaryStatus.PENDING;
+        this.aiSummaryVersion++;
+    }
+
+    public boolean completeAiSummary(Long version, String summary) {
+        if (!this.aiSummaryVersion.equals(version)) {
+            return false;
+        }
+        this.aiSummary = summary;
+        this.aiSummaryStatus = AiSummaryStatus.COMPLETED;
+        return true;
+    }
+
+    public void failAiSummary(Long version) {
+        if (this.aiSummaryVersion.equals(version)) {
+            this.aiSummaryStatus = AiSummaryStatus.FAILED;
+        }
     }
 
     /**
