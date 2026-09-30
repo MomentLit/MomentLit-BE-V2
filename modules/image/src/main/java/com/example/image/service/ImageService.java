@@ -62,37 +62,26 @@ public class ImageService {
 
     private final PanoramaStitchClient panoramaStitchClient;
 
+    private final PrivacyBlurService privacyBlurService;
+
     @Value("${cloud.aws.region}")
     private String region;
 
     @Value("${cloud.aws.s3.bucket}")
     private String bucket;
 
-    public ImageUploadResponse upload(MultipartFile file) {
+    /**
+     * @param privacyBlur false면 얼굴·번호판 자동 블라인드를 건너뛴다 — 본인 얼굴이 주인공인 프로필 사진용.
+     */
+    public ImageUploadResponse upload(MultipartFile file, boolean privacyBlur) {
         validateImage(file);
 
-        String key = createKey(file.getOriginalFilename());
-
-        try {
-            PutObjectRequest putObjectRequest = PutObjectRequest.builder()
-                    .bucket(bucket)
-                    .key(key)
-                    .contentType(file.getContentType())
-                    .contentLength(file.getSize())
-                    .build();
-
-            s3Client.putObject(
-                    putObjectRequest,
-                    RequestBody.fromInputStream(file.getInputStream(), file.getSize())
-            );
-
-            String imageUrl = createImageUrl(key);
-
-            return new ImageUploadResponse(imageUrl);
-
-        } catch (IOException e) {
-            throw new ImageUploadFailedException("이미지 업로드 중 오류가 발생했습니다.", e);
+        byte[] bytes = readBytes(file);
+        if (privacyBlur) {
+            bytes = privacyBlurService.blur(bytes, CONTENT_TYPE_EXTENSIONS.get(file.getContentType()), false);
         }
+
+        return putImage(bytes, file.getContentType(), extractExtension(file.getOriginalFilename()));
     }
 
     public ImageUploadResponse uploadPanorama(MultipartFile file) {
@@ -100,7 +89,9 @@ public class ImageService {
         validatePanoramaType(file);
         validatePanoramaRatio(file);
 
-        return upload(file);
+        byte[] bytes = privacyBlurService.blur(readBytes(file), CONTENT_TYPE_EXTENSIONS.get(file.getContentType()), true);
+
+        return putImage(bytes, file.getContentType(), extractExtension(file.getOriginalFilename()));
     }
 
     public ImageUploadResponse stitchPanorama(List<MultipartFile> files) {
@@ -117,16 +108,30 @@ public class ImageService {
             throw new PanoramaStitchFailedException("360도 사진 합성 결과의 이미지 형식이 올바르지 않습니다.");
         }
 
+        byte[] bytes = privacyBlurService.blur(stitched.bytes(), extension, true);
+
+        return putImage(bytes, stitched.contentType(), extension);
+    }
+
+    private byte[] readBytes(MultipartFile file) {
+        try {
+            return file.getBytes();
+        } catch (IOException e) {
+            throw new ImageUploadFailedException("이미지 업로드 중 오류가 발생했습니다.", e);
+        }
+    }
+
+    private ImageUploadResponse putImage(byte[] bytes, String contentType, String extension) {
         String key = IMAGE_DIRECTORY + "/" + UUID.randomUUID() + extension;
 
         PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                 .bucket(bucket)
                 .key(key)
-                .contentType(stitched.contentType())
-                .contentLength((long) stitched.bytes().length)
+                .contentType(contentType)
+                .contentLength((long) bytes.length)
                 .build();
 
-        s3Client.putObject(putObjectRequest, RequestBody.fromBytes(stitched.bytes()));
+        s3Client.putObject(putObjectRequest, RequestBody.fromBytes(bytes));
 
         return new ImageUploadResponse(createImageUrl(key));
     }
@@ -172,11 +177,6 @@ public class ImageService {
         if (!ALLOWED_CONTENT_TYPES.contains(file.getContentType())) {
             throw new InvalidImageTypeException("지원하지 않는 이미지 형식입니다.");
         }
-    }
-
-    private String createKey(String originalFilename) {
-        String extension = extractExtension(originalFilename);
-        return IMAGE_DIRECTORY + "/" + UUID.randomUUID() + extension;
     }
 
     private String extractExtension(String originalFilename) {
