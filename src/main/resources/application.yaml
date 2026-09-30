@@ -52,11 +52,6 @@ chatbot:
   base-url: "${CHATBOT_BASE_URL:http://localhost:8090}"
   internal-api-key: "${CHATBOT_INTERNAL_API_KEY:}"
 
-# 360도 사진 합성 AI 서비스 (아직 없음 — 비어 있으면 합성 요청이 실패 응답을 돌려준다)
-panorama:
-  base-url: "${PANORAMA_BASE_URL:}"
-  internal-api-key: "${PANORAMA_INTERNAL_API_KEY:}"
-
 cors:
   allowed-origins: "${CORS_ALLOWED_ORIGINS:http://localhost:3000}"
 
