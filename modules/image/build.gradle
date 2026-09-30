@@ -19,11 +19,32 @@ dependencyManagement {
     }
 }
 
+// OpenCV(bytedeco) 네이티브 라이브러리는 플랫폼별 jar로 나뉘어 있어서, 전부 넣으면 수백 MB가 된다.
+// 빌드하는 머신의 플랫폼 것만 넣는다 — Docker 빌드는 빌더 컨테이너 안에서 돌기 때문에 자동으로 linux-* 가 된다.
+// 다른 플랫폼용으로 빌드해야 하면 -PjavacppPlatform=linux-x86_64 처럼 지정한다.
+def detectJavacppPlatform() {
+    def os = System.getProperty('os.name').toLowerCase()
+    def arch = System.getProperty('os.arch').toLowerCase()
+    def osName = os.contains('mac') ? 'macosx' : os.contains('win') ? 'windows' : 'linux'
+    def archName = (arch == 'aarch64' || arch == 'arm64') ? 'arm64' : 'x86_64'
+    return "${osName}-${archName}"
+}
+
+def javacppPlatform = project.findProperty('javacppPlatform') ?: detectJavacppPlatform()
+def opencvVersion = '4.13.0-1.5.13'
+def openblasVersion = '0.3.31-1.5.13'
+def javacppVersion = '1.5.13'
+
 dependencies {
     api project(':common')
 
     implementation platform('software.amazon.awssdk:bom:2.25.60')
     implementation 'software.amazon.awssdk:s3'
+
+    implementation "org.bytedeco:opencv:${opencvVersion}"
+    runtimeOnly "org.bytedeco:opencv:${opencvVersion}:${javacppPlatform}"
+    runtimeOnly "org.bytedeco:openblas:${openblasVersion}:${javacppPlatform}"
+    runtimeOnly "org.bytedeco:javacpp:${javacppVersion}:${javacppPlatform}"
 
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'

@@ -21,6 +21,9 @@ public record SpaceCreateRequest(
         @JsonProperty("image_urls")
         List<String> imageUrls,
 
+        @JsonProperty("panorama_url")
+        String panoramaUrl,
+
         @Positive
         @JsonProperty("price_per_hour")
         Integer pricePerHour,

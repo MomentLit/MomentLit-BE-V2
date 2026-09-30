@@ -45,6 +45,30 @@ public class ImageExceptionHandler {
                 .body(ApiResponse.fail("[ERROR: Image/Upload/Failed] " + e.getMessage()));
     }
 
+    @ExceptionHandler(PanoramaImageCountException.class)
+    public ResponseEntity<ApiResponse<String>> panoramaImageCountHandleException(PanoramaImageCountException e) {
+        log.warn("PanoramaImageCountException: {}", e.getMessage());
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.fail("[ERROR: Image/Panorama/Count] " + e.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidPanoramaRatioException.class)
+    public ResponseEntity<ApiResponse<String>> invalidPanoramaRatioHandleException(InvalidPanoramaRatioException e) {
+        log.warn("InvalidPanoramaRatioException: {}", e.getMessage());
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.fail("[ERROR: Image/Panorama/InvalidRatio] " + e.getMessage()));
+    }
+
+    @ExceptionHandler(PanoramaStitchFailedException.class)
+    public ResponseEntity<ApiResponse<String>> panoramaStitchFailedHandleException(PanoramaStitchFailedException e) {
+        log.error("PanoramaStitchFailedException", e);
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.fail("[ERROR: Image/Panorama/StitchFailed] " + e.getMessage()));
+    }
+
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<ApiResponse<String>> maxUploadSizeHandleException(MaxUploadSizeExceededException e) {
         log.warn("MaxUploadSizeExceededException: {}", e.getMessage());

@@ -111,6 +111,7 @@ public class SpaceService implements SpaceInternalApi {
                 request.usageUnit(),
                 request.isDraft()
         );
+        space.updatePanoramaUrl(request.panoramaUrl());
 
         Space savedSpace = spaceRepository.save(space);
 
@@ -211,6 +212,7 @@ public class SpaceService implements SpaceInternalApi {
                 request.parkingInfo(),
                 request.usageUnit()
         );
+        space.updatePanoramaUrl(request.panoramaUrl());
 
         space.applyDraftTransition(request.isDraft());
 

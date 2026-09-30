@@ -37,6 +37,9 @@ public record SpaceDetailResponse(
         @JsonProperty("image_urls")
         List<String> imageUrls,
 
+        @JsonProperty("panorama_url")
+        String panoramaUrl,
+
         @JsonProperty("price_per_hour")
         Integer pricePerHour,
 
@@ -82,6 +85,7 @@ public record SpaceDetailResponse(
                 images.stream()
                         .map(SpaceImage::getImageUrl)
                         .toList(),
+                space.getPanoramaUrl(),
                 space.getPricePerHour(),
                 space.getLikeCount(),
                 space.getCategory().name(),
