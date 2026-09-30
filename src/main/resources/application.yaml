@@ -52,6 +52,11 @@ chatbot:
   base-url: "${CHATBOT_BASE_URL:http://localhost:8090}"
   internal-api-key: "${CHATBOT_INTERNAL_API_KEY:}"
 
+# 사진 속 얼굴·번호판 자동 블라인드 — Gemini로 위치만 찾는다 (키가 비어 있거나 실패하면 원본을 그대로 올린다)
+gemini:
+  api-key: "${GEMINI_API_KEY:}"
+  detection-model: "${GEMINI_DETECTION_MODEL:gemini-flash-latest}"
+
 cors:
   allowed-origins: "${CORS_ALLOWED_ORIGINS:http://localhost:3000}"
 
