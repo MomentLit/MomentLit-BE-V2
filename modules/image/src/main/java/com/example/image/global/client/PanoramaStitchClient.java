@@ -30,7 +30,7 @@ import static org.bytedeco.opencv.global.opencv_imgproc.threshold;
 import static org.bytedeco.opencv.global.opencv_photo.INPAINT_TELEA;
 import static org.bytedeco.opencv.global.opencv_photo.inpaint;
 import static org.bytedeco.opencv.global.opencv_stitching.WAVE_CORRECT_HORIZ;
-import static org.bytedeco.opencv.global.opencv_stitching.computeImageFeatures;
+import static org.bytedeco.opencv.global.opencv_stitching.computeImageFeatures2;
 import static org.bytedeco.opencv.global.opencv_stitching.leaveBiggestComponent;
 import static org.bytedeco.opencv.global.opencv_stitching.waveCorrect;
 
@@ -39,6 +39,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import lombok.extern.slf4j.Slf4j;
@@ -66,6 +68,7 @@ import org.bytedeco.opencv.opencv_stitching.DetailSphericalWarper;
 import org.bytedeco.opencv.opencv_stitching.GraphCutSeamFinder;
 import org.bytedeco.opencv.opencv_stitching.GraphCutSeamFinderBase;
 import org.bytedeco.opencv.opencv_stitching.HomographyBasedEstimator;
+import org.bytedeco.opencv.opencv_stitching.ImageFeatures;
 import org.bytedeco.opencv.opencv_stitching.ImageFeaturesVector;
 import org.bytedeco.opencv.opencv_stitching.MatchesInfoVector;
 import org.bytedeco.opencv.opencv_stitching.MultiBandBlender;
@@ -97,9 +100,9 @@ public class PanoramaStitchClient {
 
     private static final String OUTPUT_CONTENT_TYPE = "image/jpeg";
 
-    // 특징점 검출·카메라 추정용 해상도 — 프론트가 긴 변 1600px(약 1.9MP)로 줄여 보내므로 사실상 그대로 쓴다.
-    // 흰 벽이 많은 실내는 해상도를 낮추면 특징점이 너무 적어진다.
-    private static final double REGISTRATION_MEGAPIX = 2.0;
+    // 특징점 검출·카메라 추정용 해상도. SIFT는 첫 단계에서 이미지를 2배로 키운 float 피라미드를 만들어서 사진 한 장에
+    // 2MP면 약 400MB, 1MP면 약 250MB를 잠깐 쓴다. 1MP에서도 이웃 사진끼리 맞는 특징점 수가 충분해서 1MP로 둔다.
+    private static final double REGISTRATION_MEGAPIX = 1.0;
 
     // 시임 계산용 해상도(약 0.1MP) — stitching_detailed 기본값
     private static final double SEAM_MEGAPIX = 0.1;
@@ -122,8 +125,16 @@ public class PanoramaStitchClient {
 
     private static final double MAX_HORIZONTAL_STEP_DEGREES = 75;
 
-    // 결과 사진 가로 최대 길이 — 블렌딩 메모리와 뷰어 텍스처 크기를 고려한 값
-    private static final int MAX_PANORAMA_WIDTH = 6144;
+    // 결과 사진 가로 최대 길이 — 블렌딩 메모리와 뷰어 텍스처 크기를 고려한 값. 블렌딩·빈 곳 채우기 메모리는 넓이에 비례한다.
+    private static final int MAX_PANORAMA_WIDTH = 4096;
+
+    // 합성 한 번에 수백 MB의 네이티브 메모리를 쓰므로, 동시에 여러 요청이 와도 한 번에 하나씩만 합성한다.
+    private static final int MAX_CONCURRENT_STITCHES = 1;
+
+    // 앞 합성이 끝나기를 기다리는 최대 시간 — 넘으면 잠시 후 다시 시도하라고 안내한다.
+    private static final long STITCH_WAIT_SECONDS = 60;
+
+    private final Semaphore stitchPermits = new Semaphore(MAX_CONCURRENT_STITCHES, true);
 
     // 빈 곳 채우기는 이 가로 길이로 줄여서 계산한 뒤 키운다 — 원본 크기로 하면 너무 느리고, 어차피 흐린 색만 필요하다.
     private static final int FILL_WIDTH = 1024;
@@ -139,6 +150,7 @@ public class PanoramaStitchClient {
                 .map(this::readBytes)
                 .toList();
 
+        acquireStitchPermit();
         try (PointerScope scope = new PointerScope()) {
             Mat panorama = stitchImages(images);
 
@@ -156,6 +168,19 @@ public class PanoramaStitchClient {
         } catch (Exception | LinkageError e) {
             // LinkageError: 이 플랫폼용 OpenCV 네이티브 라이브러리를 찾지/불러오지 못한 경우
             throw new PanoramaStitchFailedException("360도 사진 합성 중 오류가 발생했습니다.", e);
+        } finally {
+            stitchPermits.release();
+        }
+    }
+
+    private void acquireStitchPermit() {
+        try {
+            if (!stitchPermits.tryAcquire(STITCH_WAIT_SECONDS, TimeUnit.SECONDS)) {
+                throw new PanoramaStitchFailedException("다른 360도 사진을 합성하고 있습니다. 잠시 후 다시 시도해 주세요.");
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PanoramaStitchFailedException("360도 사진 합성이 중단되었습니다. 다시 시도해 주세요.", e);
         }
     }
 
@@ -181,6 +206,8 @@ public class PanoramaStitchClient {
 
         Mat panoramaMask = new Mat();
         Mat panorama = compose(sources, cameras, workScale, seamScale, composeScale, warpScale, panoramaMask);
+        // 원본 사진은 더 쓰지 않는다 — PointerScope가 끝날 때까지 기다리지 않고 바로 놓아 준다.
+        sources.forEach(Mat::release);
 
         fillUncovered(panorama, panoramaMask);
         return panorama;
@@ -190,17 +217,19 @@ public class PanoramaStitchClient {
     private CameraParams[] estimateCameras(List<Mat> sources, double workScale) {
         int horizontalCount = Math.min(sources.size(), HORIZONTAL_PHOTO_COUNT);
 
-        MatVector workImages = new MatVector(horizontalCount);
+        // 여러 장을 한 번에 넘기면 OpenCV가 사진마다 병렬로 SIFT 피라미드(첫 단계는 2배 확대한 float 이미지)를 만들어
+        // 메모리가 사진 수만큼 한꺼번에 늘어난다 — 합성 전체에서 가장 큰 순간 사용량이라 한 장씩 계산한다.
+        SIFT sift = SIFT.create(0, 3, SIFT_CONTRAST_THRESHOLD, 10, 1.6, false);
+        ImageFeaturesVector features = new ImageFeaturesVector(horizontalCount);
         for (int i = 0; i < horizontalCount; i++) {
-            Mat work = new Mat();
-            resize(sources.get(i), work, new Size(), workScale, workScale, INTER_LINEAR);
-            workImages.put(i, work);
-        }
-
-        ImageFeaturesVector features = new ImageFeaturesVector();
-        computeImageFeatures(SIFT.create(0, 3, SIFT_CONTRAST_THRESHOLD, 10, 1.6, false), workImages, features);
-        for (int i = 0; i < horizontalCount; i++) {
-            features.get(i).img_idx(i);
+            try (PointerScope imageScope = new PointerScope()) {
+                Mat work = new Mat();
+                resize(sources.get(i), work, new Size(), workScale, workScale, INTER_LINEAR);
+                ImageFeatures imageFeatures = new ImageFeatures();
+                computeImageFeatures2(sift, work, imageFeatures);
+                imageFeatures.img_idx(i);
+                features.put(i, imageFeatures);
+            }
         }
 
         MatchesInfoVector pairwiseMatches = new MatchesInfoVector();
@@ -438,6 +467,7 @@ public class PanoramaStitchClient {
 
         Mat panorama = new Mat();
         blended.convertTo(panorama, CV_8U);
+        blended.release();
         return panorama;
     }
 
@@ -546,6 +576,7 @@ public class PanoramaStitchClient {
         Mat filledLarge = new Mat();
         resize(filledSmall, filledLarge, panorama.size(), 0, 0, INTER_LINEAR);
         filledLarge.copyTo(panorama, holes);
+        filledLarge.release();
 
         // 경계를 따라 띠 모양으로 흐리게 섞어서 사진과 채운 곳이 칼로 자른 듯 나뉘지 않게 한다.
         Mat kernel = new Mat(FILL_FEATHER, FILL_FEATHER, CV_8U, new Scalar(1));
@@ -559,6 +590,7 @@ public class PanoramaStitchClient {
         Mat blurred = new Mat();
         GaussianBlur(panorama, blurred, new Size(0, 0), FILL_FEATHER / 2.0);
         blurred.copyTo(panorama, band);
+        blurred.release();
     }
 
     /** 수평 사진 카메라들의 초점거리 중앙값 — 천장·바닥 카메라와 결과 크기의 기준. */
