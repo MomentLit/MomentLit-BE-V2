@@ -1,6 +1,8 @@
 spring:
   datasource:
-    url: "jdbc:h2:mem:momentlit-test;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE"
+    # 엔티티가 도메인별 schema(application.yaml의 flyway.schemas와 같은 목록)를 쓰므로, 연결할 때 H2에 schema를 먼저 만든다.
+    # create-drop이 시작할 때 하는 drop도 schema가 있어야 실패하지 않는다.
+    url: 'jdbc:h2:mem:momentlit-test;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;INIT=CREATE SCHEMA IF NOT EXISTS users\;CREATE SCHEMA IF NOT EXISTS spaces\;CREATE SCHEMA IF NOT EXISTS matchings\;CREATE SCHEMA IF NOT EXISTS alarms\;CREATE SCHEMA IF NOT EXISTS popups\;CREATE SCHEMA IF NOT EXISTS chating\;CREATE SCHEMA IF NOT EXISTS reviews\;CREATE SCHEMA IF NOT EXISTS likes\;CREATE SCHEMA IF NOT EXISTS suggestions'
     driver-class-name: org.h2.Driver
     username: sa
     password: ""

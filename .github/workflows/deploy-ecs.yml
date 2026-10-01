@@ -37,6 +37,13 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v5
 
+      - name: Install OpenCV runtime libraries
+        # OpenCV(bytedeco) 리눅스 빌드의 stitching이 highgui(GTK2)에 링크되어 있어, 이 라이브러리가 없으면
+        # 360도 사진 합성 테스트에서 네이티브 라이브러리를 불러오지 못한다(Dockerfile 런타임 이미지와 같은 패키지).
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libgtk2.0-0
+
       - name: Run tests before deployment
         run: ./gradlew test
 
