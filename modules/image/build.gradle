@@ -34,6 +34,9 @@ def javacppPlatform = project.findProperty('javacppPlatform') ?: detectJavacppPl
 def opencvVersion = '4.13.0-1.5.13'
 def openblasVersion = '0.3.31-1.5.13'
 def javacppVersion = '1.5.13'
+// 번호판 검출 모델(YOLOv9 end2end)은 OpenCV DNN이 지원하지 않는 NonMaxSuppression 연산을 써서 ONNX Runtime으로 실행한다.
+// jar 하나에 모든 플랫폼 네이티브 라이브러리가 들어 있다(약 55MB).
+def onnxruntimeVersion = '1.30.0'
 
 dependencies {
     api project(':common')
@@ -46,6 +49,15 @@ dependencies {
     runtimeOnly "org.bytedeco:openblas:${openblasVersion}:${javacppPlatform}"
     runtimeOnly "org.bytedeco:javacpp:${javacppVersion}:${javacppPlatform}"
 
+    implementation "com.microsoft.onnxruntime:onnxruntime:${onnxruntimeVersion}"
+
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
 }

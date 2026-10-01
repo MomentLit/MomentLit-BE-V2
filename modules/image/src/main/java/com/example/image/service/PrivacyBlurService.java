@@ -9,8 +9,8 @@ import static org.bytedeco.opencv.global.opencv_imgproc.INTER_AREA;
 import static org.bytedeco.opencv.global.opencv_imgproc.INTER_LINEAR;
 import static org.bytedeco.opencv.global.opencv_imgproc.resize;
 
-import com.example.image.global.client.GeminiDetectionClient;
-import com.example.image.global.client.GeminiDetectionClient.DetectedRegion;
+import com.example.image.global.client.LocalDetectionClient;
+import com.example.image.global.client.LocalDetectionClient.DetectedRegion;
 import com.example.image.global.exception.PrivacyBlurFailedException;
 import java.util.ArrayList;
 import java.util.List;
@@ -29,8 +29,8 @@ import org.springframework.stereotype.Service;
 
 /**
  * 업로드 사진 속 사람 얼굴·차량 번호판 자동 블라인드.
- * Gemini로 위치만 찾고, 찾은 영역을 OpenCV 가우시안 흐림으로 가린다.
- * 검출에 실패하면(Gemini 오류·한도 초과 등) 블라인드 없이 원본을 그대로 돌려준다.
+ * 로컬 AI 모델(LocalDetectionClient)로 위치만 찾고, 찾은 영역을 OpenCV 가우시안 흐림으로 가린다.
+ * 검출에 실패하면(모델 로드 실패·처리 오류 등) 블라인드 없이 원본을 그대로 돌려준다.
  */
 @Slf4j
 @Service
@@ -42,7 +42,7 @@ public class PrivacyBlurService {
     // 검출 영역을 가로·세로로 각각 10%씩 넓혀서 가린다(가장자리가 삐져나오지 않도록).
     private static final double REGION_PADDING_RATIO = 0.1;
 
-    // Gemini로 보내는 이미지의 긴 변 최대 길이 — 좌표는 0~1000 비율이라 줄여 보내도 그대로 쓸 수 있다.
+    // 검출 모델에 넘기는 이미지의 긴 변 최대 길이 — 좌표는 0~1000 비율이라 줄여 넘겨도 그대로 쓸 수 있다.
     private static final int DETECTION_MAX_SIDE = 2048;
 
     // 360도 사진은 가로로 길어서 한 장으로 보내면 얼굴이 너무 작아진다 — 가로로 나눠 각각 검출한다.
@@ -55,7 +55,7 @@ public class PrivacyBlurService {
 
     private static final double BLUR_SIGMA = 3.0;
 
-    private final GeminiDetectionClient geminiDetectionClient;
+    private final LocalDetectionClient localDetectionClient;
 
     /**
      * @param extension 다시 인코딩할 형식(".jpg" / ".png" / ".webp")
@@ -127,7 +127,7 @@ public class PrivacyBlurService {
         return tiles;
     }
 
-    /** 조각별 인코딩은 이 스레드에서 하고(네이티브 메모리 관리), Gemini 호출만 병렬로 보낸다. */
+    /** 조각별 인코딩은 이 스레드에서 하고(네이티브 메모리 관리), 검출만 병렬로 돌린다. */
     private List<PixelRegion> detectRegions(Mat image, List<Tile> tiles) {
         List<byte[]> tileImages = tiles.stream()
                 .map(tile -> encodeForDetection(tile.image()))
@@ -136,7 +136,7 @@ public class PrivacyBlurService {
         List<List<DetectedRegion>> detections = new ArrayList<>();
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
             List<Future<List<DetectedRegion>>> futures = tileImages.stream()
-                    .map(tileImage -> executor.submit(() -> geminiDetectionClient.detect(tileImage)))
+                    .map(tileImage -> executor.submit(() -> localDetectionClient.detect(tileImage)))
                     .toList();
 
             for (Future<List<DetectedRegion>> future : futures) {
