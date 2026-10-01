@@ -9,6 +9,7 @@ import com.example.image.global.exception.InvalidImageTypeException;
 import com.example.image.global.exception.InvalidPanoramaRatioException;
 import com.example.image.global.exception.PanoramaImageCountException;
 import com.example.image.global.exception.PanoramaStitchFailedException;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
@@ -107,6 +108,7 @@ public class ImageService {
         if (extension == null) {
             throw new PanoramaStitchFailedException("360도 사진 합성 결과의 이미지 형식이 올바르지 않습니다.");
         }
+        validateStitchedPanoramaRatio(stitched.bytes());
 
         byte[] bytes = privacyBlurService.blur(stitched.bytes(), extension, true);
 
@@ -166,6 +168,34 @@ public class ImageService {
             }
         } catch (IOException e) {
             throw new ImageUploadFailedException("이미지 크기 확인 중 오류가 발생했습니다.", e);
+        }
+    }
+
+    // 합성 결과도 직접 올린 360도 사진과 같은 2:1 비율이어야 뷰어에서 늘어나거나 어긋나 보이지 않는다.
+    private void validateStitchedPanoramaRatio(byte[] bytes) {
+        try (ImageInputStream input = ImageIO.createImageInputStream(new ByteArrayInputStream(bytes))) {
+            if (input == null) {
+                throw new PanoramaStitchFailedException("360도 사진 합성 결과의 이미지 형식이 올바르지 않습니다.");
+            }
+
+            Iterator<ImageReader> readers = ImageIO.getImageReaders(input);
+            if (!readers.hasNext()) {
+                throw new PanoramaStitchFailedException("360도 사진 합성 결과의 이미지 형식이 올바르지 않습니다.");
+            }
+
+            ImageReader reader = readers.next();
+            try {
+                reader.setInput(input);
+                double ratio = (double) reader.getWidth(0) / reader.getHeight(0);
+
+                if (Math.abs(ratio - PANORAMA_RATIO) > PANORAMA_RATIO_TOLERANCE) {
+                    throw new PanoramaStitchFailedException("360도 사진 합성 결과의 가로:세로 비율이 2:1이 아닙니다.");
+                }
+            } finally {
+                reader.dispose();
+            }
+        } catch (IOException e) {
+            throw new PanoramaStitchFailedException("360도 사진 합성 결과를 확인하는 중 오류가 발생했습니다.", e);
         }
     }
 
