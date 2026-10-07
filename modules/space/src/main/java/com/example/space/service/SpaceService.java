@@ -330,6 +330,13 @@ public class SpaceService implements SpaceInternalApi {
     }
 
     @Override
+    @Transactional
+    public void lockSpaceForMatching(Long spaceId) {
+        spaceRepository.findByIdWithLock(spaceId)
+                .orElseThrow(() -> new SpaceNotFoundException("공간을 찾을 수 없습니다."));
+    }
+
+    @Override
     public SpaceMatchingContextResponse getMatchingContext(
             Long spaceId,
             LocalDateTime startTime,

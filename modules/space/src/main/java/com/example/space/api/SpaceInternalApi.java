@@ -22,6 +22,9 @@ public interface SpaceInternalApi {
 
     SpaceMatchingContextResponse getMatchingContext(Long spaceId, LocalDateTime startTime, LocalDateTime endTime);
 
+    /** 예약 생성·승인을 공간 단위로 직렬화한다. 호출자의 트랜잭션에서 사용한다. */
+    void lockSpaceForMatching(Long spaceId);
+
     SpaceDetailResponse getSpace(Long spaceId);
 
     /** 매칭 승인 시 matching 모듈이 호출 — 그 날짜를 예약 완료로 기록해 날짜 검색에서 걸러지게 한다. */

@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 
 import jakarta.persistence.LockModeType;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface MatchingRepository extends JpaRepository<Matching, Long> {
@@ -17,6 +18,13 @@ public interface MatchingRepository extends JpaRepository<Matching, Long> {
     List<Matching> findBySellerIdOrderByCreatedAtDesc(String sellerId);
 
     List<Matching> findByHostIdOrderByCreatedAtDesc(String hostId);
+
+    @Query("select m.spaceId from Matching m where m.id = :matchingId")
+    Optional<Long> findSpaceIdById(@Param("matchingId") Long matchingId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select m from Matching m where m.id = :matchingId")
+    Optional<Matching> findByIdForUpdate(@Param("matchingId") Long matchingId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select m from Matching m where m.spaceId = :spaceId order by m.id")

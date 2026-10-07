@@ -46,6 +46,8 @@ public class MatchingService implements MatchingInternalApi {
 
         Integer totalPrice = parsePrice(request.totalPrice());
 
+        // 기존 요청이 없는 공간도 잠가 동시 중복 생성과 승인 직후 요청을 방지한다.
+        spaceApi.lockSpaceForMatching(request.spaceId());
         SpaceMatchingContextResponse space =
                 spaceApi.getMatchingContext(request.spaceId(), startTime, endTime);
 
@@ -62,6 +64,9 @@ public class MatchingService implements MatchingInternalApi {
                 request.guestCount()
         );
 
+        List<Matching> spaceMatchings = matchingRepository.findAllBySpaceIdForUpdate(request.spaceId());
+        validateNoDuplicateRequest(matching, spaceMatchings);
+        validateNoApprovedOverlap(matching, spaceMatchings);
         matchingRepository.save(matching);
         alarmApi.createAlarm(space.hostId(), matching.getId(), "새로운 예약 요청이 도착했습니다.");
 
@@ -86,7 +91,11 @@ public class MatchingService implements MatchingInternalApi {
 
     @Transactional
     public void approve(String userId, Long matchingId) {
-        Matching matching = getMatching(matchingId);
+        Long spaceId = matchingRepository.findSpaceIdById(matchingId)
+                .orElseThrow(() -> new MatchingNotFoundException("존재하지 않는 예약 요청입니다."));
+        // 생성과 같은 잠금 순서(space → matching). 잠금을 얻은 뒤 최신 상태를 조회한다.
+        spaceApi.lockSpaceForMatching(spaceId);
+        Matching matching = getMatchingForUpdate(matchingId);
         if (!matching.isHost(userId)) {
             throw new ForbiddenException("매칭 처리 권한이 없습니다.");
         }
@@ -109,18 +118,26 @@ public class MatchingService implements MatchingInternalApi {
         matching.approve(userId);
         spaceApi.markSpaceBooked(matching.getSpaceId(), matching.getStartTime().toLocalDate(), matching.getId());
         alarmApi.createAlarm(matching.getSellerId(), matching.getId(), "예약 요청이 승인되었습니다.");
+
+        for (Matching pending : spaceMatchings) {
+            if (pending.getStatus() == MatchingStatus.REQUESTED && overlaps(pending, matching)) {
+                pending.reject(userId);
+                alarmApi.createAlarm(pending.getSellerId(), pending.getId(),
+                        "같은 공간의 겹치는 시간대에 다른 예약이 승인되어 예약 요청이 자동 거절되었습니다.");
+            }
+        }
     }
 
     @Transactional
     public void reject(String userId, Long matchingId) {
-        Matching matching = getMatching(matchingId);
+        Matching matching = getMatchingForUpdate(matchingId);
         matching.reject(userId);
         alarmApi.createAlarm(matching.getSellerId(), matching.getId(), "예약 요청이 거절되었습니다.");
     }
 
     @Transactional
     public void cancel(String userId, Long matchingId) {
-        Matching matching = getMatching(matchingId);
+        Matching matching = getMatchingForUpdate(matchingId);
         matching.cancel(userId);
         alarmApi.createAlarm(matching.getHostId(), matching.getId(), "예약 요청이 취소되었습니다.");
     }
@@ -166,6 +183,11 @@ public class MatchingService implements MatchingInternalApi {
                 .orElseThrow(() -> new MatchingNotFoundException("존재하지 않는 예약 요청입니다."));
     }
 
+    private Matching getMatchingForUpdate(Long matchingId) {
+        return matchingRepository.findByIdForUpdate(matchingId)
+                .orElseThrow(() -> new MatchingNotFoundException("존재하지 않는 예약 요청입니다."));
+    }
+
     private void validateSpaceForMatching(
             String sellerId,
             SpaceMatchingContextResponse space
@@ -193,6 +215,23 @@ public class MatchingService implements MatchingInternalApi {
         }
     }
 
+    private void validateNoDuplicateRequest(Matching target, List<Matching> spaceMatchings) {
+        boolean duplicate = spaceMatchings.stream()
+                .filter(matching -> matching.getStatus() == MatchingStatus.REQUESTED)
+                .anyMatch(matching -> matching.getSellerId().equals(target.getSellerId())
+                        && matching.getStartTime().equals(target.getStartTime())
+                        && matching.getEndTime().equals(target.getEndTime()));
+
+        if (duplicate) {
+            throw new InvalidMatchingStateException("같은 공간과 시간에 이미 승인 대기 중인 예약 요청이 있습니다.");
+        }
+    }
+
+    private boolean overlaps(Matching first, Matching second) {
+        return first.getStartTime().isBefore(second.getEndTime())
+                && first.getEndTime().isAfter(second.getStartTime());
+    }
+
     private void validateNoApprovedOverlap(
             Matching target,
             List<Matching> spaceMatchings
@@ -204,10 +243,7 @@ public class MatchingService implements MatchingInternalApi {
                                 || !Objects.equals(matching.getId(), target.getId()))
                 )
                 .filter(matching -> matching.getStatus() == MatchingStatus.APPROVED)
-                .anyMatch(matching ->
-                        matching.getStartTime().isBefore(target.getEndTime())
-                                && matching.getEndTime().isAfter(target.getStartTime())
-                );
+                .anyMatch(matching -> overlaps(matching, target));
 
         if (overlaps) {
             throw new InvalidMatchingStateException("이미 승인된 매칭과 시간이 겹칩니다.");
