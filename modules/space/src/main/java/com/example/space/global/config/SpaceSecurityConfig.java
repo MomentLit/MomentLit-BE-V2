@@ -64,6 +64,10 @@ public class SpaceSecurityConfig {
 
                         .requestMatchers(HttpMethod.PUT, "/spaces/*/availability").authenticated()
 
+                        // 외부 예약 링크 클릭은 비로그인도 기록한다(토큰이 있으면 필터가 principal을 채운다).
+                        .requestMatchers(HttpMethod.POST, "/spaces/*/external-booking-clicks").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/spaces/*/external-booking-clicks/count").authenticated()
+
                         .anyRequest().permitAll()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)

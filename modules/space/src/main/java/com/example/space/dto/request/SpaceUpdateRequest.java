@@ -1,5 +1,6 @@
 package com.example.space.dto.request;
 
+import com.example.space.entity.BookingType;
 import com.example.space.entity.SpaceCategory;
 import com.example.space.entity.UsageUnit;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -53,6 +54,14 @@ public record SpaceUpdateRequest(
 
         @JsonProperty("usage_unit")
         UsageUnit usageUnit,
+
+        @JsonProperty("booking_type")
+        BookingType bookingType,
+
+        // EXTERNAL일 때 필수. 수정 시 빈 문자열이면 링크 삭제
+        @Size(max = 2048)
+        @JsonProperty("external_booking_url")
+        String externalBookingUrl,
 
         @JsonProperty("is_draft")
         Boolean isDraft
