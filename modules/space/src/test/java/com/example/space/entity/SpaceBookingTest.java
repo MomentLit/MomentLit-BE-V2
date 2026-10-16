@@ -76,12 +76,24 @@ class SpaceBookingTest {
     }
 
     @Test
-    void EXTERNAL_공간의_링크를_빈_문자열로_지우면_거부한다() {
+    void 타입_없이_링크를_빈_문자열로_지우면_INTERNAL로_되돌린다() {
         Space space = newSpace();
         space.updateBooking(BookingType.EXTERNAL, "https://diart.example.com");
 
-        assertThatThrownBy(() -> space.updateBooking(null, ""))
+        space.updateBooking(null, "");
+
+        assertThat(space.isExternalBooking()).isFalse();
+        assertThat(space.getExternalBookingUrl()).isNull();
+    }
+
+    @Test
+    void EXTERNAL을_명시하고_빈_링크를_보내면_거부한다() {
+        Space space = newSpace();
+        space.updateBooking(BookingType.EXTERNAL, "https://diart.example.com");
+
+        assertThatThrownBy(() -> space.updateBooking(BookingType.EXTERNAL, ""))
                 .isInstanceOf(BadRequestException.class);
+        assertThat(space.getExternalBookingUrl()).isEqualTo("https://diart.example.com");
     }
 
     @Test

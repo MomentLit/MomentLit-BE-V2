@@ -245,7 +245,8 @@ public class Space {
 
     /**
      * 예약 방식/외부 예약 링크 변경.
-     * 둘 다 null이면 변경하지 않는다. URL이 빈 문자열이면 링크를 지운다.
+     * 둘 다 null이면 변경하지 않는다.
+     * 타입 없이 URL을 빈 문자열로 보내면 링크를 지우고 모먼트릿 예약(INTERNAL)으로 되돌린다.
      * 결과가 EXTERNAL이면 http(s) 링크가 반드시 있어야 하고, INTERNAL이면 링크를 비운다.
      */
     public void updateBooking(BookingType bookingType, String externalBookingUrl) {
@@ -253,7 +254,10 @@ public class Space {
             return;
         }
 
-        BookingType nextType = bookingType != null ? bookingType : this.bookingType;
+        boolean clearsUrl = externalBookingUrl != null && externalBookingUrl.isBlank();
+        BookingType nextType = bookingType != null
+                ? bookingType
+                : (clearsUrl ? BookingType.INTERNAL : this.bookingType);
         String nextUrl = externalBookingUrl != null
                 ? (externalBookingUrl.isBlank() ? null : externalBookingUrl.trim())
                 : this.externalBookingUrl;
