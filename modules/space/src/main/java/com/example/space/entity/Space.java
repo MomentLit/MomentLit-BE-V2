@@ -7,6 +7,8 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.time.LocalDateTime;
 @Getter
 @Entity
@@ -78,6 +80,13 @@ public class Space {
     @Column(name = "usage_unit")
     private UsageUnit usageUnit;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "booking_type", nullable = false)
+    private BookingType bookingType;
+
+    @Column(name = "external_booking_url", length = 2048)
+    private String externalBookingUrl;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -126,6 +135,7 @@ public class Space {
         this.floor = floor;
         this.parkingInfo = parkingInfo;
         this.usageUnit = usageUnit;
+        this.bookingType = BookingType.INTERNAL;
     }
 
     public static Space create(
@@ -231,6 +241,58 @@ public class Space {
         }
 
         this.panoramaUrl = panoramaUrl.isBlank() ? null : panoramaUrl;
+    }
+
+    /**
+     * 예약 방식/외부 예약 링크 변경.
+     * 둘 다 null이면 변경하지 않는다.
+     * 타입 없이 URL을 빈 문자열로 보내면 링크를 지우고 모먼트릿 예약(INTERNAL)으로 되돌린다.
+     * 결과가 EXTERNAL이면 http(s) 링크가 반드시 있어야 하고, INTERNAL이면 링크를 비운다.
+     */
+    public void updateBooking(BookingType bookingType, String externalBookingUrl) {
+        if (bookingType == null && externalBookingUrl == null) {
+            return;
+        }
+
+        boolean clearsUrl = externalBookingUrl != null && externalBookingUrl.isBlank();
+        BookingType nextType = bookingType != null
+                ? bookingType
+                : (clearsUrl ? BookingType.INTERNAL : this.bookingType);
+        String nextUrl = externalBookingUrl != null
+                ? (externalBookingUrl.isBlank() ? null : externalBookingUrl.trim())
+                : this.externalBookingUrl;
+
+        if (nextType == BookingType.INTERNAL) {
+            this.bookingType = BookingType.INTERNAL;
+            this.externalBookingUrl = null;
+            return;
+        }
+
+        if (nextUrl == null) {
+            throw new BadRequestException("외부 예약 공간은 예약 링크를 입력해야 합니다.");
+        }
+        validateExternalBookingUrl(nextUrl);
+
+        this.bookingType = BookingType.EXTERNAL;
+        this.externalBookingUrl = nextUrl;
+    }
+
+    public boolean isExternalBooking() {
+        return this.bookingType == BookingType.EXTERNAL;
+    }
+
+    private static void validateExternalBookingUrl(String url) {
+        try {
+            URI uri = new URI(url);
+            String scheme = uri.getScheme();
+            if (scheme == null
+                    || !(scheme.equalsIgnoreCase("http") || scheme.equalsIgnoreCase("https"))
+                    || uri.getHost() == null) {
+                throw new BadRequestException("예약 링크는 http:// 또는 https://로 시작하는 주소여야 합니다.");
+            }
+        } catch (URISyntaxException e) {
+            throw new BadRequestException("예약 링크 형식이 올바르지 않습니다.");
+        }
     }
 
     public void updateAdminStatus(ApprovalStatus adminStatus) {

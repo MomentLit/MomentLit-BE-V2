@@ -58,7 +58,13 @@ public record AdminSpaceDetailResponse(
         String parkingInfo,
 
         @JsonProperty("usage_unit")
-        String usageUnit
+        String usageUnit,
+
+        @JsonProperty("booking_type")
+        String bookingType,
+
+        @JsonProperty("external_booking_url")
+        String externalBookingUrl
 ) {
 
     public static AdminSpaceDetailResponse from(
@@ -88,7 +94,9 @@ public record AdminSpaceDetailResponse(
                 space.getCapacity(),
                 space.getFloor(),
                 space.getParkingInfo(),
-                space.getUsageUnit() != null ? space.getUsageUnit().name() : null
+                space.getUsageUnit() != null ? space.getUsageUnit().name() : null,
+                space.getBookingType().name(),
+                space.getExternalBookingUrl()
         );
     }
 }

@@ -9,6 +9,7 @@ import com.example.space.dto.request.ScheduleUpdateRequest;
 import com.example.space.dto.request.SpaceAvailabilitySlotRequest;
 import com.example.space.dto.request.SpaceCreateRequest;
 import com.example.space.dto.request.SpaceUpdateRequest;
+import com.example.space.dto.response.ExternalBookingClickCountResponse;
 import com.example.space.dto.response.MySpaceListResponse;
 import com.example.space.dto.response.ScheduleCreateResponse;
 import com.example.space.dto.response.ScheduleListResponses;
@@ -268,6 +269,38 @@ public class SpaceController {
 
         ApiResponse<SpaceAvailabilityListResponses> apiResponse =
                 ResponseUtil.success("select space availability", response);
+
+        return ResponseEntity.ok(apiResponse);
+    }
+
+    /**
+     * 외부 예약 링크 클릭 기록. 비로그인도 허용하며, 로그인한 경우에만 user_id를 남긴다.
+     */
+    @PostMapping("/{space-id}/external-booking-clicks")
+    public ResponseEntity<Void> recordExternalBookingClick(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable("space-id") Long spaceId
+    ) {
+        spaceService.recordExternalBookingClick(
+                principal != null ? principal.userId() : null,
+                spaceId
+        );
+
+        return ResponseEntity.status(201).build();
+    }
+
+    @GetMapping("/{space-id}/external-booking-clicks/count")
+    public ResponseEntity<ApiResponse<ExternalBookingClickCountResponse>> getExternalBookingClickCount(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable("space-id") Long spaceId
+    ) {
+        ExternalBookingClickCountResponse response = spaceService.getExternalBookingClickCount(
+                principal.userId(),
+                spaceId
+        );
+
+        ApiResponse<ExternalBookingClickCountResponse> apiResponse =
+                ResponseUtil.success("select external booking click count", response);
 
         return ResponseEntity.ok(apiResponse);
     }
