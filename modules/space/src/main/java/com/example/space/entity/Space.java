@@ -71,6 +71,12 @@ public class Space {
 
     private Integer capacity;
 
+    @Column(name = "min_capacity")
+    private Integer minCapacity;
+
+    @Column(name = "usage_notice", columnDefinition = "TEXT")
+    private String usageNotice;
+
     private String floor;
 
     @Column(name = "parking_info")
@@ -164,7 +170,7 @@ public class Space {
                 .thumbnailUrl(thumbnailUrl)
                 .pricePerHour(pricePerHour)
                 .category(category)
-                .phone(phone)
+                .phone(phone == null || phone.isBlank() ? null : phone.strip())
                 .area(area)
                 .capacity(capacity)
                 .floor(floor)
@@ -212,7 +218,7 @@ public class Space {
             this.category = category;
         }
         if (phone != null) {
-            this.phone = phone;
+            this.phone = phone.isBlank() ? null : phone.strip();
         }
         if (area != null) {
             this.area = area;
@@ -292,6 +298,31 @@ public class Space {
             }
         } catch (URISyntaxException e) {
             throw new BadRequestException("예약 링크 형식이 올바르지 않습니다.");
+        }
+    }
+
+    /**
+     * 이용 안내(문의·주의·이용사항) 변경. null이면 변경하지 않고, 빈 문자열이면 지운다.
+     */
+    public void updateUsageNotice(String usageNotice) {
+        if (usageNotice == null) {
+            return;
+        }
+
+        this.usageNotice = usageNotice.isBlank() ? null : usageNotice.strip();
+    }
+
+    /**
+     * 최소 이용 인원 변경. null이면 변경하지 않고, 0이면 지운다.
+     * 최대 인원(capacity)보다 크면 거부한다 — capacity를 먼저 반영한 뒤 호출해야 한다.
+     */
+    public void updateMinCapacity(Integer minCapacity) {
+        if (minCapacity != null) {
+            this.minCapacity = minCapacity == 0 ? null : minCapacity;
+        }
+
+        if (this.minCapacity != null && this.capacity != null && this.minCapacity > this.capacity) {
+            throw new BadRequestException("최소 인원은 최대 인원보다 많을 수 없습니다.");
         }
     }
 

@@ -32,6 +32,9 @@ public record MySpaceListResponse(
 
         Integer capacity,
 
+        @JsonProperty("min_capacity")
+        Integer minCapacity,
+
         String floor,
 
         @JsonProperty("parking_info")
@@ -57,6 +60,7 @@ public record MySpaceListResponse(
                 space.getCategory().name(),
                 space.getArea(),
                 space.getCapacity(),
+                space.getMinCapacity(),
                 space.getFloor(),
                 space.getParkingInfo(),
                 space.getUsageUnit() != null ? space.getUsageUnit().name() : null
