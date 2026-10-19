@@ -52,6 +52,15 @@ public record SpaceDetailResponse(
 
         Integer capacity,
 
+        @JsonProperty("min_capacity")
+        Integer minCapacity,
+
+        @JsonProperty("usage_notice")
+        String usageNotice,
+
+        @JsonProperty("phone")
+        String phone,
+
         String floor,
 
         @JsonProperty("parking_info")
@@ -97,6 +106,9 @@ public record SpaceDetailResponse(
                 space.getCategory().name(),
                 space.getArea(),
                 space.getCapacity(),
+                space.getMinCapacity(),
+                space.getUsageNotice(),
+                space.getPhone(),
                 space.getFloor(),
                 space.getParkingInfo(),
                 space.getUsageUnit() != null ? space.getUsageUnit().name() : null,

@@ -117,6 +117,8 @@ public class SpaceService implements SpaceInternalApi {
         );
         space.updatePanoramaUrl(request.panoramaUrl());
         space.updateBooking(request.bookingType(), request.externalBookingUrl());
+        space.updateUsageNotice(request.usageNotice());
+        space.updateMinCapacity(request.minCapacity());
 
         Space savedSpace = spaceRepository.save(space);
 
@@ -219,6 +221,8 @@ public class SpaceService implements SpaceInternalApi {
         );
         space.updatePanoramaUrl(request.panoramaUrl());
         space.updateBooking(request.bookingType(), request.externalBookingUrl());
+        space.updateUsageNotice(request.usageNotice());
+        space.updateMinCapacity(request.minCapacity());
 
         space.applyDraftTransition(request.isDraft());
 
@@ -382,7 +386,8 @@ public class SpaceService implements SpaceInternalApi {
                 Boolean.TRUE.equals(space.getIsActive()),
                 available,
                 space.getCapacity(),
-                space.isExternalBooking()
+                space.isExternalBooking(),
+                space.getMinCapacity()
         );
     }
 

@@ -47,6 +47,9 @@ public record AdminSpaceListResponse(
 
         Integer capacity,
 
+        @JsonProperty("min_capacity")
+        Integer minCapacity,
+
         String floor,
 
         @JsonProperty("parking_info")
@@ -77,6 +80,7 @@ public record AdminSpaceListResponse(
                 space.getUpdatedAt(),
                 space.getArea(),
                 space.getCapacity(),
+                space.getMinCapacity(),
                 space.getFloor(),
                 space.getParkingInfo(),
                 space.getUsageUnit() != null ? space.getUsageUnit().name() : null

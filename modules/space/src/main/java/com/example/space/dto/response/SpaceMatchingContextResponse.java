@@ -20,6 +20,10 @@ public record SpaceMatchingContextResponse(
 
         /** 외부 홈페이지로 예약을 받는 공간이면 true — 모먼트릿 매칭 요청을 받지 않는다. */
         @JsonProperty("external_booking")
-        boolean externalBooking
+        boolean externalBooking,
+
+        /** null이면 최소 인원 제한 없음. */
+        @JsonProperty("min_capacity")
+        Integer minCapacity
 ) {
 }

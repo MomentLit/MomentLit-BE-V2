@@ -217,6 +217,9 @@ public class MatchingService implements MatchingInternalApi {
         if (guestCount != null && space.capacity() != null && guestCount > space.capacity()) {
             throw new BadRequestException("최대 수용 인원(" + space.capacity() + "명)을 초과했습니다.");
         }
+        if (guestCount != null && space.minCapacity() != null && guestCount < space.minCapacity()) {
+            throw new BadRequestException("최소 이용 인원(" + space.minCapacity() + "명)보다 적습니다.");
+        }
     }
 
     private void validateNoDuplicateRequest(Matching target, List<Matching> spaceMatchings) {
