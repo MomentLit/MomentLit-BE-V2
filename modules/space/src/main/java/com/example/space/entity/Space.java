@@ -7,6 +7,8 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.time.LocalDateTime;
 @Getter
 @Entity
@@ -69,6 +71,12 @@ public class Space {
 
     private Integer capacity;
 
+    @Column(name = "min_capacity")
+    private Integer minCapacity;
+
+    @Column(name = "usage_notice", columnDefinition = "TEXT")
+    private String usageNotice;
+
     private String floor;
 
     @Column(name = "parking_info")
@@ -77,6 +85,13 @@ public class Space {
     @Enumerated(EnumType.STRING)
     @Column(name = "usage_unit")
     private UsageUnit usageUnit;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "booking_type", nullable = false)
+    private BookingType bookingType;
+
+    @Column(name = "external_booking_url", length = 2048)
+    private String externalBookingUrl;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -126,6 +141,7 @@ public class Space {
         this.floor = floor;
         this.parkingInfo = parkingInfo;
         this.usageUnit = usageUnit;
+        this.bookingType = BookingType.INTERNAL;
     }
 
     public static Space create(
@@ -154,7 +170,7 @@ public class Space {
                 .thumbnailUrl(thumbnailUrl)
                 .pricePerHour(pricePerHour)
                 .category(category)
-                .phone(phone)
+                .phone(phone == null || phone.isBlank() ? null : phone.strip())
                 .area(area)
                 .capacity(capacity)
                 .floor(floor)
@@ -202,7 +218,7 @@ public class Space {
             this.category = category;
         }
         if (phone != null) {
-            this.phone = phone;
+            this.phone = phone.isBlank() ? null : phone.strip();
         }
         if (area != null) {
             this.area = area;
@@ -231,6 +247,83 @@ public class Space {
         }
 
         this.panoramaUrl = panoramaUrl.isBlank() ? null : panoramaUrl;
+    }
+
+    /**
+     * 예약 방식/외부 예약 링크 변경.
+     * 둘 다 null이면 변경하지 않는다.
+     * 타입 없이 URL을 빈 문자열로 보내면 링크를 지우고 모먼트릿 예약(INTERNAL)으로 되돌린다.
+     * 결과가 EXTERNAL이면 http(s) 링크가 반드시 있어야 하고, INTERNAL이면 링크를 비운다.
+     */
+    public void updateBooking(BookingType bookingType, String externalBookingUrl) {
+        if (bookingType == null && externalBookingUrl == null) {
+            return;
+        }
+
+        boolean clearsUrl = externalBookingUrl != null && externalBookingUrl.isBlank();
+        BookingType nextType = bookingType != null
+                ? bookingType
+                : (clearsUrl ? BookingType.INTERNAL : this.bookingType);
+        String nextUrl = externalBookingUrl != null
+                ? (externalBookingUrl.isBlank() ? null : externalBookingUrl.trim())
+                : this.externalBookingUrl;
+
+        if (nextType == BookingType.INTERNAL) {
+            this.bookingType = BookingType.INTERNAL;
+            this.externalBookingUrl = null;
+            return;
+        }
+
+        if (nextUrl == null) {
+            throw new BadRequestException("외부 예약 공간은 예약 링크를 입력해야 합니다.");
+        }
+        validateExternalBookingUrl(nextUrl);
+
+        this.bookingType = BookingType.EXTERNAL;
+        this.externalBookingUrl = nextUrl;
+    }
+
+    public boolean isExternalBooking() {
+        return this.bookingType == BookingType.EXTERNAL;
+    }
+
+    private static void validateExternalBookingUrl(String url) {
+        try {
+            URI uri = new URI(url);
+            String scheme = uri.getScheme();
+            if (scheme == null
+                    || !(scheme.equalsIgnoreCase("http") || scheme.equalsIgnoreCase("https"))
+                    || uri.getHost() == null) {
+                throw new BadRequestException("예약 링크는 http:// 또는 https://로 시작하는 주소여야 합니다.");
+            }
+        } catch (URISyntaxException e) {
+            throw new BadRequestException("예약 링크 형식이 올바르지 않습니다.");
+        }
+    }
+
+    /**
+     * 이용 안내(문의·주의·이용사항) 변경. null이면 변경하지 않고, 빈 문자열이면 지운다.
+     */
+    public void updateUsageNotice(String usageNotice) {
+        if (usageNotice == null) {
+            return;
+        }
+
+        this.usageNotice = usageNotice.isBlank() ? null : usageNotice.strip();
+    }
+
+    /**
+     * 최소 이용 인원 변경. null이면 변경하지 않고, 0이면 지운다.
+     * 최대 인원(capacity)보다 크면 거부한다 — capacity를 먼저 반영한 뒤 호출해야 한다.
+     */
+    public void updateMinCapacity(Integer minCapacity) {
+        if (minCapacity != null) {
+            this.minCapacity = minCapacity == 0 ? null : minCapacity;
+        }
+
+        if (this.minCapacity != null && this.capacity != null && this.minCapacity > this.capacity) {
+            throw new BadRequestException("최소 인원은 최대 인원보다 많을 수 없습니다.");
+        }
     }
 
     public void updateAdminStatus(ApprovalStatus adminStatus) {

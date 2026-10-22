@@ -57,6 +57,15 @@ public record SpaceDetailResponse(
 
         Integer capacity,
 
+        @JsonProperty("min_capacity")
+        Integer minCapacity,
+
+        @JsonProperty("usage_notice")
+        String usageNotice,
+
+        @JsonProperty("phone")
+        String phone,
+
         String floor,
 
         @JsonProperty("parking_info")
@@ -66,7 +75,13 @@ public record SpaceDetailResponse(
         String usageUnit,
 
         @JsonProperty("admin_status")
-        String adminStatus
+        String adminStatus,
+
+        @JsonProperty("booking_type")
+        String bookingType,
+
+        @JsonProperty("external_booking_url")
+        String externalBookingUrl
 ) {
 
     public static SpaceDetailResponse from(
@@ -99,10 +114,15 @@ public record SpaceDetailResponse(
                 space.getCategory().name(),
                 space.getArea(),
                 space.getCapacity(),
+                space.getMinCapacity(),
+                space.getUsageNotice(),
+                space.getPhone(),
                 space.getFloor(),
                 space.getParkingInfo(),
                 space.getUsageUnit() != null ? space.getUsageUnit().name() : null,
-                space.getAdminStatus().name()
+                space.getAdminStatus().name(),
+                space.getBookingType().name(),
+                space.getExternalBookingUrl()
         );
     }
 }

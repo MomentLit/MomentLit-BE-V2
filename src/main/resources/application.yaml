@@ -8,7 +8,7 @@ spring:
     name: MomentLit-BE-V2
   servlet:
     multipart:
-      max-file-size: 10MB
+      max-file-size: 20MB
       # 360도 사진 합성 요청은 사진 10장(장당 최대 10MB)을 한 번에 보낸다
       max-request-size: 100MB
   datasource:

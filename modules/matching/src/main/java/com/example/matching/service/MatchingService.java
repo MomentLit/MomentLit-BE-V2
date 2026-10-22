@@ -200,6 +200,10 @@ public class MatchingService implements MatchingInternalApi {
             throw new InvalidMatchingStateException("승인되지 않은 공간에는 매칭을 요청할 수 없습니다.");
         }
 
+        if (space.externalBooking()) {
+            throw new InvalidMatchingStateException("외부 홈페이지에서 예약을 받는 공간입니다. 공간 상세의 예약 링크를 이용해 주세요.");
+        }
+
         if (!space.available()) {
             throw new InvalidMatchingStateException("요청 시간이 공간의 예약 가능 일정에 포함되지 않습니다.");
         }
@@ -212,6 +216,9 @@ public class MatchingService implements MatchingInternalApi {
     private void validateGuestCount(SpaceMatchingContextResponse space, Integer guestCount) {
         if (guestCount != null && space.capacity() != null && guestCount > space.capacity()) {
             throw new BadRequestException("최대 수용 인원(" + space.capacity() + "명)을 초과했습니다.");
+        }
+        if (guestCount != null && space.minCapacity() != null && guestCount < space.minCapacity()) {
+            throw new BadRequestException("최소 이용 인원(" + space.minCapacity() + "명)보다 적습니다.");
         }
     }
 

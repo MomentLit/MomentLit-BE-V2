@@ -15,7 +15,7 @@ CREATE TABLE spaces.space_panorama_scene_links (
 CREATE INDEX idx_space_panorama_scene_links_space_id
     ON spaces.space_panorama_scene_links (space_id);
 
--- 기존 장면은 등록 순서대로 앞뒤 장면을 잇는다(V18 동작 그대로).
+-- 기존 장면은 등록 순서대로 앞뒤 장면을 잇는다(V20 동작 그대로).
 -- 다음 장면은 정면(yaw 0), 이전 장면은 뒤쪽(yaw π)에 화살표를 둔다.
 INSERT INTO spaces.space_panorama_scene_links (space_id, from_scene_id, to_scene_id, yaw)
 SELECT current_scene.space_id, current_scene.id, next_scene.id, 0

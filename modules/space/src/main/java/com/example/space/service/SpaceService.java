@@ -14,6 +14,7 @@ import com.example.space.dto.request.PanoramaSceneRequest;
 import com.example.space.dto.response.AddressResponse;
 import com.example.space.dto.response.AdminSpaceDetailResponse;
 import com.example.space.dto.response.AdminSpaceListResponses;
+import com.example.space.dto.response.ExternalBookingClickCountResponse;
 import com.example.space.dto.response.MySpaceListResponse;
 import com.example.space.dto.response.ScheduleCreateResponse;
 import com.example.space.dto.response.ScheduleListResponses;
@@ -35,6 +36,7 @@ import com.example.space.entity.Space;
 import com.example.space.entity.SpaceAvailability;
 import com.example.space.entity.SpaceBookedDate;
 import com.example.space.entity.SpaceCategory;
+import com.example.space.entity.SpaceExternalBookingClick;
 import com.example.space.entity.SpaceImage;
 import com.example.space.entity.SpacePanoramaScene;
 import com.example.space.entity.SpacePanoramaSceneLink;
@@ -49,6 +51,7 @@ import com.example.space.repository.AddressRepository;
 import com.example.space.repository.AiSummaryOutboxRepository;
 import com.example.space.repository.SpaceAvailabilityRepository;
 import com.example.space.repository.SpaceBookedDateRepository;
+import com.example.space.repository.SpaceExternalBookingClickRepository;
 import com.example.space.repository.SpaceImageRepository;
 import com.example.space.repository.SpacePanoramaSceneLinkRepository;
 import com.example.space.repository.SpacePanoramaSceneRepository;
@@ -93,6 +96,7 @@ public class SpaceService implements SpaceInternalApi {
     private final SpaceScheduleRepository spaceScheduleRepository;
     private final SpaceAvailabilityRepository spaceAvailabilityRepository;
     private final SpaceBookedDateRepository spaceBookedDateRepository;
+    private final SpaceExternalBookingClickRepository spaceExternalBookingClickRepository;
     private final AddressRepository addressRepository;
     private final AiSummaryOutboxRepository aiSummaryOutboxRepository;
     private final UserInternalApi userApi;
@@ -124,6 +128,9 @@ public class SpaceService implements SpaceInternalApi {
         );
         space.updatePanoramaUrl(request.panoramaUrl());
         syncPanoramaUrl(space, request.panoramaScenes());
+        space.updateBooking(request.bookingType(), request.externalBookingUrl());
+        space.updateUsageNotice(request.usageNotice());
+        space.updateMinCapacity(request.minCapacity());
 
         Space savedSpace = spaceRepository.save(space);
 
@@ -229,6 +236,9 @@ public class SpaceService implements SpaceInternalApi {
         );
         space.updatePanoramaUrl(request.panoramaUrl());
         syncPanoramaUrl(space, request.panoramaScenes());
+        space.updateBooking(request.bookingType(), request.externalBookingUrl());
+        space.updateUsageNotice(request.usageNotice());
+        space.updateMinCapacity(request.minCapacity());
 
         space.applyDraftTransition(request.isDraft());
 
@@ -399,7 +409,9 @@ public class SpaceService implements SpaceInternalApi {
                 space.getAdminStatus() == ApprovalStatus.APPROVED,
                 Boolean.TRUE.equals(space.getIsActive()),
                 available,
-                space.getCapacity()
+                space.getCapacity(),
+                space.isExternalBooking(),
+                space.getMinCapacity()
         );
     }
 
@@ -691,6 +703,37 @@ public class SpaceService implements SpaceInternalApi {
         if (!Role.ADMIN.name().equals(role)) {
             throw new ForbiddenException("관리자 권한이 없습니다.");
         }
+    }
+
+    @Transactional
+    public void recordExternalBookingClick(
+            String userId,
+            Long spaceId
+    ) {
+        Space space = getActiveSpace(spaceId);
+
+        if (!space.isExternalBooking()) {
+            throw new BadRequestException("외부 예약 링크가 없는 공간입니다.");
+        }
+
+        spaceExternalBookingClickRepository.save(new SpaceExternalBookingClick(spaceId, userId));
+    }
+
+    public ExternalBookingClickCountResponse getExternalBookingClickCount(
+            String userId,
+            Long spaceId
+    ) {
+        Space space = getActiveSpace(spaceId);
+        validateOwner(space, userId);
+
+        return new ExternalBookingClickCountResponse(
+                spaceId,
+                spaceExternalBookingClickRepository.countBySpaceId(spaceId),
+                spaceExternalBookingClickRepository.countBySpaceIdAndCreatedAtGreaterThanEqual(
+                        spaceId,
+                        LocalDateTime.now().minusDays(30)
+                )
+        );
     }
 
     private void saveImages(

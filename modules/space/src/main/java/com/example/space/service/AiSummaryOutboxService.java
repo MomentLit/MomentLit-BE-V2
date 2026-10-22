@@ -60,11 +60,13 @@ public class AiSummaryOutboxService {
         return Optional.of(new AiSummaryRequest(
                 space.getName(),
                 space.getDescription(),
+                space.getUsageNotice(),
                 space.getCategory().name(),
                 address.getSido(),
                 address.getSigungu(),
                 space.getArea(),
                 space.getCapacity(),
+                space.getMinCapacity(),
                 space.getFloor(),
                 space.getParkingInfo(),
                 space.getUsageUnit() == null ? null : space.getUsageUnit().name(),
