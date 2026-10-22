@@ -2,6 +2,8 @@ package com.example.space.dto.response;
 
 import com.example.space.entity.Space;
 import com.example.space.entity.SpaceImage;
+import com.example.space.entity.SpacePanoramaScene;
+import com.example.space.entity.SpacePanoramaSceneLink;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.time.LocalDateTime;
@@ -28,6 +30,12 @@ public record AdminSpaceDetailResponse(
 
         @JsonProperty("image_urls")
         List<String> imageUrls,
+
+        @JsonProperty("panorama_url")
+        String panoramaUrl,
+
+        @JsonProperty("panorama_scenes")
+        List<PanoramaSceneResponse> panoramaScenes,
 
         @JsonProperty("price_per_hour")
         Integer pricePerHour,
@@ -64,7 +72,9 @@ public record AdminSpaceDetailResponse(
     public static AdminSpaceDetailResponse from(
             Space space,
             AddressResponse address,
-            List<SpaceImage> images
+            List<SpaceImage> images,
+            List<SpacePanoramaScene> panoramaScenes,
+            List<SpacePanoramaSceneLink> panoramaSceneLinks
     ) {
         return new AdminSpaceDetailResponse(
                 space.getId(),
@@ -77,6 +87,8 @@ public record AdminSpaceDetailResponse(
                 images.stream()
                         .map(SpaceImage::getImageUrl)
                         .toList(),
+                space.getPanoramaUrl(),
+                PanoramaSceneResponse.from(panoramaScenes, panoramaSceneLinks),
                 space.getPricePerHour(),
                 space.getAdminStatus().name(),
                 space.getIsActive(),

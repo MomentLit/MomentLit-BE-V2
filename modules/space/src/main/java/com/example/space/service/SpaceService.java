@@ -9,6 +9,8 @@ import com.example.space.dto.request.SpaceAdminStatusUpdateRequest;
 import com.example.space.dto.request.SpaceCreateRequest;
 import com.example.space.dto.request.SpaceUpdateRequest;
 import com.example.space.dto.request.AddressRequest;
+import com.example.space.dto.request.PanoramaSceneLinkRequest;
+import com.example.space.dto.request.PanoramaSceneRequest;
 import com.example.space.dto.response.AddressResponse;
 import com.example.space.dto.response.AdminSpaceDetailResponse;
 import com.example.space.dto.response.AdminSpaceListResponses;
@@ -34,6 +36,8 @@ import com.example.space.entity.SpaceAvailability;
 import com.example.space.entity.SpaceBookedDate;
 import com.example.space.entity.SpaceCategory;
 import com.example.space.entity.SpaceImage;
+import com.example.space.entity.SpacePanoramaScene;
+import com.example.space.entity.SpacePanoramaSceneLink;
 import com.example.space.entity.SpaceSchedule;
 import com.example.space.entity.UsageUnit;
 import com.example.space.global.client.ChatbotSyncClient;
@@ -46,6 +50,8 @@ import com.example.space.repository.AiSummaryOutboxRepository;
 import com.example.space.repository.SpaceAvailabilityRepository;
 import com.example.space.repository.SpaceBookedDateRepository;
 import com.example.space.repository.SpaceImageRepository;
+import com.example.space.repository.SpacePanoramaSceneLinkRepository;
+import com.example.space.repository.SpacePanoramaSceneRepository;
 import com.example.space.repository.SpaceRepository;
 import com.example.space.repository.SpaceScheduleRepository;
 import com.example.user.api.UserInternalApi;
@@ -64,11 +70,14 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 @Service
 @RequiredArgsConstructor
@@ -79,6 +88,8 @@ public class SpaceService implements SpaceInternalApi {
 
     private final SpaceRepository spaceRepository;
     private final SpaceImageRepository spaceImageRepository;
+    private final SpacePanoramaSceneRepository spacePanoramaSceneRepository;
+    private final SpacePanoramaSceneLinkRepository spacePanoramaSceneLinkRepository;
     private final SpaceScheduleRepository spaceScheduleRepository;
     private final SpaceAvailabilityRepository spaceAvailabilityRepository;
     private final SpaceBookedDateRepository spaceBookedDateRepository;
@@ -112,10 +123,12 @@ public class SpaceService implements SpaceInternalApi {
                 request.isDraft()
         );
         space.updatePanoramaUrl(request.panoramaUrl());
+        syncPanoramaUrl(space, request.panoramaScenes());
 
         Space savedSpace = spaceRepository.save(space);
 
         saveImages(savedSpace.getId(), request.imageUrls());
+        savePanoramaScenes(savedSpace.getId(), request.panoramaScenes());
 
         enqueueAiSummary(savedSpace);
 
@@ -179,9 +192,11 @@ public class SpaceService implements SpaceInternalApi {
         Space space = getActiveSpace(spaceId);
         Address address = getAddress(space.getAddressId());
         List<SpaceImage> images = spaceImageRepository.findAllBySpaceId(spaceId);
+        List<SpacePanoramaScene> panoramaScenes = spacePanoramaSceneRepository.findAllBySpaceIdOrderBySortOrderAsc(spaceId);
+        List<SpacePanoramaSceneLink> panoramaSceneLinks = spacePanoramaSceneLinkRepository.findAllBySpaceId(spaceId);
         UserProfileResponse host = userApi.getUserProfile(space.getHostId());
 
-        return SpaceDetailResponse.from(space, AddressResponse.from(address), images, host.name(), host.imageUrl());
+        return SpaceDetailResponse.from(space, AddressResponse.from(address), images, panoramaScenes, panoramaSceneLinks, host.name(), host.imageUrl());
     }
 
     @Transactional
@@ -213,12 +228,19 @@ public class SpaceService implements SpaceInternalApi {
                 request.usageUnit()
         );
         space.updatePanoramaUrl(request.panoramaUrl());
+        syncPanoramaUrl(space, request.panoramaScenes());
 
         space.applyDraftTransition(request.isDraft());
 
         if (request.imageUrls() != null) {
             spaceImageRepository.deleteAllBySpaceId(spaceId);
             saveImages(spaceId, request.imageUrls());
+        }
+
+        if (request.panoramaScenes() != null) {
+            spacePanoramaSceneLinkRepository.deleteAllBySpaceId(spaceId);
+            spacePanoramaSceneRepository.deleteAllBySpaceId(spaceId);
+            savePanoramaScenes(spaceId, request.panoramaScenes());
         }
 
         boolean aiSummaryQueued = request.hasAiSummarySourceChanges();
@@ -245,6 +267,8 @@ public class SpaceService implements SpaceInternalApi {
         space.delete();
 
         spaceImageRepository.deleteAllBySpaceId(spaceId);
+        spacePanoramaSceneLinkRepository.deleteAllBySpaceId(spaceId);
+        spacePanoramaSceneRepository.deleteAllBySpaceId(spaceId);
         spaceScheduleRepository.deleteAllBySpaceId(spaceId);
 
         syncToChatbotAfterCommit(spaceId);
@@ -400,8 +424,10 @@ public class SpaceService implements SpaceInternalApi {
         Space space = getActiveSpace(spaceId);
         Address address = getAddress(space.getAddressId());
         List<SpaceImage> images = spaceImageRepository.findAllBySpaceId(spaceId);
+        List<SpacePanoramaScene> panoramaScenes = spacePanoramaSceneRepository.findAllBySpaceIdOrderBySortOrderAsc(spaceId);
+        List<SpacePanoramaSceneLink> panoramaSceneLinks = spacePanoramaSceneLinkRepository.findAllBySpaceId(spaceId);
 
-        return AdminSpaceDetailResponse.from(space, AddressResponse.from(address), images);
+        return AdminSpaceDetailResponse.from(space, AddressResponse.from(address), images, panoramaScenes, panoramaSceneLinks);
     }
 
     @Override
@@ -680,6 +706,87 @@ public class SpaceService implements SpaceInternalApi {
                 .toList();
 
         spaceImageRepository.saveAll(images);
+    }
+
+    /**
+     * 360도 장면을 요청 순서 그대로 저장한 뒤, 장면 사이 이동 화살표를 저장한다.
+     * 첫 장면이 시작 장면이고, 화살표의 도착 장면은 요청 목록 안 위치로 가리킨다.
+     */
+    private void savePanoramaScenes(
+            Long spaceId,
+            List<PanoramaSceneRequest> panoramaScenes
+    ) {
+        if (panoramaScenes == null || panoramaScenes.isEmpty()) {
+            return;
+        }
+
+        List<SpacePanoramaScene> scenes = IntStream.range(0, panoramaScenes.size())
+                .mapToObj(index -> SpacePanoramaScene.create(
+                        spaceId,
+                        panoramaScenes.get(index).imageUrl(),
+                        panoramaScenes.get(index).name(),
+                        index
+                ))
+                .toList();
+
+        // IDENTITY 전략이라 saveAll 뒤에는 같은 엔티티에 id가 채워져 있다.
+        spacePanoramaSceneRepository.saveAll(scenes);
+
+        savePanoramaSceneLinks(spaceId, panoramaScenes, scenes);
+    }
+
+    private void savePanoramaSceneLinks(
+            Long spaceId,
+            List<PanoramaSceneRequest> panoramaScenes,
+            List<SpacePanoramaScene> scenes
+    ) {
+        List<SpacePanoramaSceneLink> links = new ArrayList<>();
+
+        for (int index = 0; index < panoramaScenes.size(); index++) {
+            List<PanoramaSceneLinkRequest> linkRequests = panoramaScenes.get(index).links();
+            if (linkRequests == null) {
+                continue;
+            }
+
+            Set<Integer> targetIndexes = new HashSet<>();
+            for (PanoramaSceneLinkRequest linkRequest : linkRequests) {
+                Integer targetIndex = linkRequest.targetIndex();
+                if (targetIndex == null || targetIndex < 0 || targetIndex >= scenes.size()) {
+                    throw new BadRequestException("이동할 360도 장면을 찾을 수 없습니다.");
+                }
+
+                if (!targetIndexes.add(targetIndex)) {
+                    throw new BadRequestException("같은 360도 장면으로 가는 화살표가 중복되었습니다.");
+                }
+
+                links.add(SpacePanoramaSceneLink.create(
+                        spaceId,
+                        scenes.get(index).getId(),
+                        scenes.get(targetIndex).getId(),
+                        linkRequest.yaw()
+                ));
+            }
+        }
+
+        if (links.isEmpty()) {
+            return;
+        }
+
+        spacePanoramaSceneLinkRepository.saveAll(links);
+    }
+
+    /**
+     * 장면 목록이 오면 하위 호환용 panorama_url을 첫 장면 URL로 맞춘다. 빈 목록이면 지운다.
+     */
+    private void syncPanoramaUrl(
+            Space space,
+            List<PanoramaSceneRequest> panoramaScenes
+    ) {
+        if (panoramaScenes == null) {
+            return;
+        }
+
+        space.updatePanoramaUrl(panoramaScenes.isEmpty() ? "" : panoramaScenes.get(0).imageUrl());
     }
 
     private String blankToNull(String value) {

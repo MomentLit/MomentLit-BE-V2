@@ -30,6 +30,10 @@ public record SpaceUpdateRequest(
         @JsonProperty("panorama_url")
         String panoramaUrl,
 
+        // null이면 변경 없음, 빈 목록이면 360도 장면 전체 삭제, 그 외에는 전체 교체(panorama_url도 첫 장면으로 맞춘다)
+        @JsonProperty("panorama_scenes")
+        List<PanoramaSceneRequest> panoramaScenes,
+
         @Positive
         @JsonProperty("price_per_hour")
         Integer pricePerHour,
