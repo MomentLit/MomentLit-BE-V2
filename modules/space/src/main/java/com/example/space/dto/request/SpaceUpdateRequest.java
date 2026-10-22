@@ -81,6 +81,7 @@ public record SpaceUpdateRequest(
     public boolean hasAiSummarySourceChanges() {
         return name != null
                 || description != null
+                || usageNotice != null
                 || address != null
                 || pricePerHour != null
                 || category != null
