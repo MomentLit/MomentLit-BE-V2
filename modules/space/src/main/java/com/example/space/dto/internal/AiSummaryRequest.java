@@ -15,6 +15,7 @@ public record AiSummaryRequest(
         String floor,
         @JsonProperty("parking_info") String parkingInfo,
         @JsonProperty("usage_unit") String usageUnit,
-        @JsonProperty("price_per_hour") Integer pricePerHour
+        @JsonProperty("price_per_hour") Integer pricePerHour,
+        @JsonProperty("price_inquiry") Boolean priceInquiry
 ) {
 }

@@ -106,6 +106,7 @@ public class SpaceService implements SpaceInternalApi {
                 address.getId(),
                 request.thumbnailUrl(),
                 request.pricePerHour(),
+                request.priceInquiry(),
                 request.category(),
                 request.phone(),
                 request.area(),
@@ -210,7 +211,6 @@ public class SpaceService implements SpaceInternalApi {
                 request.description(),
                 null,
                 request.thumbnailUrl(),
-                request.pricePerHour(),
                 request.category(),
                 request.phone(),
                 request.area(),
@@ -219,6 +219,7 @@ public class SpaceService implements SpaceInternalApi {
                 request.parkingInfo(),
                 request.usageUnit()
         );
+        space.updatePrice(request.priceInquiry(), request.pricePerHour());
         space.updatePanoramaUrl(request.panoramaUrl());
         space.updateBooking(request.bookingType(), request.externalBookingUrl());
         space.updateUsageNotice(request.usageNotice());

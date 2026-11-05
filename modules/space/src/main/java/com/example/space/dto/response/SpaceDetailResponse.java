@@ -43,6 +43,9 @@ public record SpaceDetailResponse(
         @JsonProperty("price_per_hour")
         Integer pricePerHour,
 
+        @JsonProperty("price_inquiry")
+        Boolean priceInquiry,
+
         @JsonProperty("like_count")
         Integer likeCount,
 
@@ -102,6 +105,7 @@ public record SpaceDetailResponse(
                         .toList(),
                 space.getPanoramaUrl(),
                 space.getPricePerHour(),
+                space.getPriceInquiry(),
                 space.getLikeCount(),
                 space.getCategory().name(),
                 space.getArea(),

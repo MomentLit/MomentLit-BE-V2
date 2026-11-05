@@ -10,7 +10,7 @@ class SpaceBookingTest {
 
     private Space newSpace() {
         return Space.create(
-                "host-1", "디아트 스튜디오", "소개", null, 1L, null, 10000,
+                "host-1", "디아트 스튜디오", "소개", null, 1L, null, 10000, false,
                 SpaceCategory.STUDIO, null, null, null, null, null, null, false
         );
     }

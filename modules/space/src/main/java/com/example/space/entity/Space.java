@@ -48,8 +48,12 @@ public class Space {
     @Column(name = "panorama_url")
     private String panoramaUrl;
 
-    @Column(name = "price_per_hour", nullable = false)
+    // 가격 문의 공간이면 null
+    @Column(name = "price_per_hour")
     private Integer pricePerHour;
+
+    @Column(name = "price_inquiry", nullable = false)
+    private Boolean priceInquiry;
 
     @Column(name = "like_count", nullable = false)
     private Integer likeCount;
@@ -112,7 +116,6 @@ public class Space {
             String aiSummary,
             Long addressId,
             String thumbnailUrl,
-            Integer pricePerHour,
             SpaceCategory category,
             String phone,
             Double area,
@@ -130,7 +133,7 @@ public class Space {
         this.aiSummaryVersion = 1L;
         this.addressId = addressId;
         this.thumbnailUrl = thumbnailUrl;
-        this.pricePerHour = pricePerHour;
+        this.priceInquiry = false;
         this.likeCount = 0;
         this.category = category;
         this.adminStatus = adminStatus;
@@ -152,6 +155,7 @@ public class Space {
             Long addressId,
             String thumbnailUrl,
             Integer pricePerHour,
+            Boolean priceInquiry,
             SpaceCategory category,
             String phone,
             Double area,
@@ -161,14 +165,13 @@ public class Space {
             UsageUnit usageUnit,
             Boolean isDraft
     ) {
-        return Space.builder()
+        Space space = Space.builder()
                 .hostId(hostId)
                 .name(name)
                 .description(description)
                 .aiSummary(aiSummary)
                 .addressId(addressId)
                 .thumbnailUrl(thumbnailUrl)
-                .pricePerHour(pricePerHour)
                 .category(category)
                 .phone(phone == null || phone.isBlank() ? null : phone.strip())
                 .area(area)
@@ -178,6 +181,8 @@ public class Space {
                 .usageUnit(usageUnit)
                 .adminStatus(Boolean.TRUE.equals(isDraft) ? ApprovalStatus.DRAFT : ApprovalStatus.PENDING)
                 .build();
+        space.applyPrice(Boolean.TRUE.equals(priceInquiry), pricePerHour);
+        return space;
     }
 
     public void update(
@@ -185,7 +190,6 @@ public class Space {
             String description,
             String aiSummary,
             String thumbnailUrl,
-            Integer pricePerHour,
             SpaceCategory category,
             String phone,
             Double area,
@@ -210,10 +214,6 @@ public class Space {
             this.thumbnailUrl = thumbnailUrl;
         }
 
-        if (pricePerHour != null) {
-            this.pricePerHour = pricePerHour;
-        }
-
         if (category != null) {
             this.category = category;
         }
@@ -235,6 +235,40 @@ public class Space {
         if (usageUnit != null) {
             this.usageUnit = usageUnit;
         }
+    }
+
+    /**
+     * 시간당 가격/가격 문의 변경. 둘 다 null이면 변경하지 않는다.
+     * 결과가 가격 문의면 시간당 가격은 받아도 무시하고 비운다.
+     * 가격 문의가 아니면 요청에 없는 가격은 기존 값을 쓰므로, 가격 문의 공간을 되돌릴 때는 가격을 함께 보내야 한다.
+     */
+    public void updatePrice(Boolean priceInquiry, Integer pricePerHour) {
+        if (priceInquiry == null && pricePerHour == null) {
+            return;
+        }
+
+        applyPrice(
+                priceInquiry != null ? priceInquiry : this.priceInquiry,
+                pricePerHour != null ? pricePerHour : this.pricePerHour
+        );
+    }
+
+    private void applyPrice(boolean priceInquiry, Integer pricePerHour) {
+        if (priceInquiry) {
+            this.priceInquiry = true;
+            this.pricePerHour = null;
+            return;
+        }
+
+        if (pricePerHour == null) {
+            throw new BadRequestException("가격 문의가 아닌 공간은 시간당 가격을 입력해야 합니다.");
+        }
+        if (pricePerHour <= 0) {
+            throw new BadRequestException("시간당 가격은 0보다 커야 합니다.");
+        }
+
+        this.priceInquiry = false;
+        this.pricePerHour = pricePerHour;
     }
 
     /**
