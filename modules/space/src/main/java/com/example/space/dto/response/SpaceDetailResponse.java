@@ -2,6 +2,8 @@ package com.example.space.dto.response;
 
 import com.example.space.entity.Space;
 import com.example.space.entity.SpaceImage;
+import com.example.space.entity.SpacePanoramaScene;
+import com.example.space.entity.SpacePanoramaSceneLink;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
@@ -39,6 +41,9 @@ public record SpaceDetailResponse(
 
         @JsonProperty("panorama_url")
         String panoramaUrl,
+
+        @JsonProperty("panorama_scenes")
+        List<PanoramaSceneResponse> panoramaScenes,
 
         @JsonProperty("price_per_hour")
         Integer pricePerHour,
@@ -86,6 +91,8 @@ public record SpaceDetailResponse(
             Space space,
             AddressResponse address,
             List<SpaceImage> images,
+            List<SpacePanoramaScene> panoramaScenes,
+            List<SpacePanoramaSceneLink> panoramaSceneLinks,
             String hostName,
             String hostImageUrl
     ) {
@@ -104,6 +111,7 @@ public record SpaceDetailResponse(
                         .map(SpaceImage::getImageUrl)
                         .toList(),
                 space.getPanoramaUrl(),
+                PanoramaSceneResponse.from(panoramaScenes, panoramaSceneLinks),
                 space.getPricePerHour(),
                 space.getPriceInquiry(),
                 space.getLikeCount(),

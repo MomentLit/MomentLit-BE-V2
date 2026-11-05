@@ -56,7 +56,8 @@ Table Spaces {
   description text
   ai_summary text
   thumbnail_url varchar [not null]
-  price_per_hour int [not null]
+  price_per_hour int [note: "price_inquiry가 true면 null"]
+  price_inquiry boolean [not null, default: false, note: "가격 대신 \"가격 문의\"로 노출"]
   like_count int [not null, note: "공간 좋아요 등록/취소 시 함께 증감"]
   admin_status ApprovalStatus [not null, note: "코드가 생성 시점에 PENDING으로 채움 (DB 레벨 default 없음)"]
   is_active boolean [not null, note: "코드가 생성 시점에 true로 채움 (DB 레벨 default 없음)"]
@@ -84,6 +85,22 @@ Table Space_Images {
   id bigint [pk, increment]
   space_id bigint [not null]
   image_url varchar [not null]
+}
+
+Table Space_Panorama_Scenes {
+  id bigint [pk, increment]
+  space_id bigint [not null]
+  image_url varchar [not null]
+  name varchar
+  sort_order int [not null, note: "공간 안 360도 장면 순서. 0번이 시작 장면"]
+}
+
+Table Space_Panorama_Scene_Links {
+  id bigint [pk, increment]
+  space_id bigint [not null]
+  from_scene_id bigint [not null]
+  to_scene_id bigint [not null]
+  yaw double [not null, note: "출발 장면에서 이동 화살표가 놓이는 수평 방향(라디안, 0 이상 2π 미만)"]
 }
 
 Table Space_Schedules {
@@ -261,6 +278,10 @@ Table Messages {
 // 나중에 다시 별도 서비스/DB로 쪼갤 수 있도록 스키마 간 FK를 의도적으로 걸지 않았습니다.
 Ref: Spaces.host_id > Users.id
 Ref: Space_Images.space_id > Spaces.id
+Ref: Space_Panorama_Scenes.space_id > Spaces.id
+Ref: Space_Panorama_Scene_Links.space_id > Spaces.id
+Ref: Space_Panorama_Scene_Links.from_scene_id > Space_Panorama_Scenes.id
+Ref: Space_Panorama_Scene_Links.to_scene_id > Space_Panorama_Scenes.id
 Ref: Space_Schedules.space_id > Spaces.id
 Ref: Spaces.address_id > Addresses.id
 Ref: Matchings.space_id > Spaces.id
@@ -303,6 +324,8 @@ TableGroup User_Aggregate {
 TableGroup Space_Aggregate {
   Spaces
   Space_Images
+  Space_Panorama_Scenes
+  Space_Panorama_Scene_Links
   Space_Schedules
   Addresses
 }

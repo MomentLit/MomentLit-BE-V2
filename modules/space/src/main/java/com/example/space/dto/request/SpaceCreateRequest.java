@@ -26,6 +26,10 @@ public record SpaceCreateRequest(
         @JsonProperty("panorama_url")
         String panoramaUrl,
 
+        // 목록 순서대로 앞뒤 장면이 이어진다. 있으면 panorama_url 대신 첫 장면 URL을 저장한다.
+        @JsonProperty("panorama_scenes")
+        List<PanoramaSceneRequest> panoramaScenes,
+
         // price_inquiry가 true면 무시하고 비운다. 아니면 필수이며 양수여야 한다 (Space에서 검증)
         @JsonProperty("price_per_hour")
         Integer pricePerHour,
