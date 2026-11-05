@@ -303,7 +303,7 @@ class SpaceServicePanoramaSceneTest {
 
     private Space existingSpace(String panoramaUrl) {
         Space space = Space.create(
-                HOST_ID, "공간", "소개", null, 10L, null, 10000,
+                HOST_ID, "공간", "소개", null, 10L, null, 10000, false,
                 SpaceCategory.POPUP_STORE, null, null, null, null, null, null, false
         );
         ReflectionTestUtils.setField(space, "id", SPACE_ID);
@@ -325,6 +325,7 @@ class SpaceServicePanoramaSceneTest {
                 panoramaUrl,
                 panoramaScenes,
                 10000,
+                null,
                 SpaceCategory.POPUP_STORE,
                 null, null, null, null, null, null, null, null, null, null,
                 false
@@ -335,7 +336,7 @@ class SpaceServicePanoramaSceneTest {
         return new SpaceUpdateRequest(
                 null, null, null, null, null, null, null,
                 panoramaScenes,
-                null, null, null, null, null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null, null, null, null
         );
     }
 }

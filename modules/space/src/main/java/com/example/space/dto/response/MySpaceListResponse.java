@@ -17,6 +17,9 @@ public record MySpaceListResponse(
         @JsonProperty("price_per_hour")
         Integer pricePerHour,
 
+        @JsonProperty("price_inquiry")
+        Boolean priceInquiry,
+
         @JsonProperty("like_count")
         Integer likeCount,
 
@@ -54,6 +57,7 @@ public record MySpaceListResponse(
                 address,
                 space.getThumbnailUrl(),
                 space.getPricePerHour(),
+                space.getPriceInquiry(),
                 space.getLikeCount(),
                 space.getAdminStatus().name(),
                 space.getIsActive(),

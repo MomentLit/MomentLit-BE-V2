@@ -27,6 +27,9 @@ public record AdminSpaceListResponse(
         @JsonProperty("price_per_hour")
         Integer pricePerHour,
 
+        @JsonProperty("price_inquiry")
+        Boolean priceInquiry,
+
         @JsonProperty("admin_status")
         String adminStatus,
 
@@ -72,6 +75,7 @@ public record AdminSpaceListResponse(
                 address,
                 space.getThumbnailUrl(),
                 space.getPricePerHour(),
+                space.getPriceInquiry(),
                 space.getAdminStatus().name(),
                 space.getIsActive(),
                 space.getCategory().name(),

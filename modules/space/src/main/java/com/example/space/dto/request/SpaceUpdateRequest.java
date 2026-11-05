@@ -5,7 +5,6 @@ import com.example.space.entity.SpaceCategory;
 import com.example.space.entity.UsageUnit;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 
@@ -35,9 +34,13 @@ public record SpaceUpdateRequest(
         @JsonProperty("panorama_scenes")
         List<PanoramaSceneRequest> panoramaScenes,
 
-        @Positive
+        // price_inquiry가 true면 무시하고 비운다. 아니면 필수이며 양수여야 한다 (Space에서 검증)
         @JsonProperty("price_per_hour")
         Integer pricePerHour,
+
+        // 가격 대신 "가격 문의"로 노출. 등록 시 null이면 false
+        @JsonProperty("price_inquiry")
+        Boolean priceInquiry,
 
         SpaceCategory category,
 
@@ -88,6 +91,7 @@ public record SpaceUpdateRequest(
                 || usageNotice != null
                 || address != null
                 || pricePerHour != null
+                || priceInquiry != null
                 || category != null
                 || area != null
                 || capacity != null

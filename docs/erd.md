@@ -56,7 +56,8 @@ Table Spaces {
   description text
   ai_summary text
   thumbnail_url varchar [not null]
-  price_per_hour int [not null]
+  price_per_hour int [note: "price_inquiry가 true면 null"]
+  price_inquiry boolean [not null, default: false, note: "가격 대신 \"가격 문의\"로 노출"]
   like_count int [not null, note: "공간 좋아요 등록/취소 시 함께 증감"]
   admin_status ApprovalStatus [not null, note: "코드가 생성 시점에 PENDING으로 채움 (DB 레벨 default 없음)"]
   is_active boolean [not null, note: "코드가 생성 시점에 true로 채움 (DB 레벨 default 없음)"]

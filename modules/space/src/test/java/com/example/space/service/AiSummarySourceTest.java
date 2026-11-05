@@ -41,7 +41,7 @@ class AiSummarySourceTest {
         AiSummaryOutboxService service = new AiSummaryOutboxService(
                 mock(AiSummaryOutboxRepository.class), spaces, addresses);
         Space space = Space.create("host-1", "공간", "창가 테이블 구역", null, 1L, null,
-                20000, SpaceCategory.CAFE, null, null, 15, "1층", null, null, false);
+                20000, false, SpaceCategory.CAFE, null, null, 15, "1층", null, null, false);
         space.updateUsageNotice("벽면 타공 불가, 음식물 반입은 사전 협의");
         space.updateMinCapacity(3);
         when(spaces.findById(1L)).thenReturn(Optional.of(space));
@@ -59,5 +59,32 @@ class AiSummarySourceTest {
 
         space.updateUsageNotice("");
         assertThat(service.loadRequest(job).orElseThrow().usageNotice()).isNull();
+    }
+
+    @Test
+    void 가격_문의_여부만_수정해도_요약을_재생성한다() {
+        assertThat(mapper.readValue("{\"price_inquiry\":true}", SpaceUpdateRequest.class)
+                .hasAiSummarySourceChanges()).isTrue();
+        assertThat(mapper.readValue("{\"price_inquiry\":false,\"price_per_hour\":10000}", SpaceUpdateRequest.class)
+                .hasAiSummarySourceChanges()).isTrue();
+    }
+
+    @Test
+    void 가격_문의_공간은_가격을_null로_문의_여부와_함께_전달한다() {
+        SpaceRepository spaces = mock(SpaceRepository.class);
+        AddressRepository addresses = mock(AddressRepository.class);
+        AiSummaryOutboxService service = new AiSummaryOutboxService(
+                mock(AiSummaryOutboxRepository.class), spaces, addresses);
+        Space space = Space.create("host-1", "공간", "소개", null, 1L, null,
+                null, true, SpaceCategory.CAFE, null, null, null, null, null, null, false);
+        when(spaces.findById(1L)).thenReturn(Optional.of(space));
+        when(addresses.findById(1L)).thenReturn(Optional.of(
+                Address.create("부산광역시", "부산진구", null, "도로명", null, null, "12345")));
+        var job = new AiSummaryOutboxService.AiSummaryJob("event", 1L, space.getAiSummaryVersion());
+
+        var json = mapper.readTree(mapper.writeValueAsString(service.loadRequest(job).orElseThrow()));
+
+        assertThat(json.get("price_per_hour").isNull()).isTrue();
+        assertThat(json.get("price_inquiry").asBoolean()).isTrue();
     }
 }

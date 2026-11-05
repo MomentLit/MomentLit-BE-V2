@@ -70,7 +70,8 @@ public class AiSummaryOutboxService {
                 space.getFloor(),
                 space.getParkingInfo(),
                 space.getUsageUnit() == null ? null : space.getUsageUnit().name(),
-                space.getPricePerHour()
+                space.getPricePerHour(),
+                space.getPriceInquiry()
         ));
     }
 

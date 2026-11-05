@@ -75,6 +75,7 @@ class SpaceLikeServiceTest {
                 2L,
                 "https://example.com/thumbnail.jpg",
                 10_000,
+                false,
                 SpaceCategory.CAFE,
                 "010-1234-5678",
                 null,
