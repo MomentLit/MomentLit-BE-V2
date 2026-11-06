@@ -26,6 +26,7 @@ public class SpacePanoramaScene {
     @Column(name = "image_url", nullable = false)
     private String imageUrl;
 
+    @Column(length = 1000)
     private String name;
 
     @Column(name = "sort_order", nullable = false)

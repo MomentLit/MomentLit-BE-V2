@@ -28,7 +28,7 @@ public class ChatRoom {
     @Column(nullable = false, name = "seller_id")
     private String sellerId;
 
-    @Column(nullable = false, name = "space_name")
+    @Column(nullable = false, name = "space_name", length = 1000)
     private String spaceName;
 
     @Column(nullable = false, name = "host_name")
