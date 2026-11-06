@@ -23,7 +23,7 @@ public class Space {
     @Column(name = "host_id", nullable = false)
     private String hostId;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 1000)
     private String name;
 
     @Column(columnDefinition = "TEXT")
@@ -81,9 +81,10 @@ public class Space {
     @Column(name = "usage_notice", columnDefinition = "TEXT")
     private String usageNotice;
 
+    @Column(length = 1000)
     private String floor;
 
-    @Column(name = "parking_info")
+    @Column(name = "parking_info", length = 1000)
     private String parkingInfo;
 
     @Enumerated(EnumType.STRING)

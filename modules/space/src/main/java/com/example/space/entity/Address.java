@@ -42,7 +42,7 @@ public class Address {
     @Column(name = "jibun_address")
     private String jibunAddress;
 
-    @Column(name = "detail_address")
+    @Column(name = "detail_address", length = 1000)
     private String detailAddress;
 
     @Column(name = "postal_code")

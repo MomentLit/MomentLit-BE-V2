@@ -4,6 +4,7 @@ import com.example.space.entity.BookingType;
 import com.example.space.entity.SpaceCategory;
 import com.example.space.entity.UsageUnit;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
@@ -11,10 +12,12 @@ import jakarta.validation.constraints.Size;
 import java.util.List;
 
 public record SpaceCreateRequest(
+        @Size(max = 1000, message = "공간 이름은 구역 이름을 포함해 1000자 이하로 입력해 주세요.")
         String name,
 
         String description,
 
+        @Valid
         AddressRequest address,
 
         @JsonProperty("thumbnail_url")
@@ -28,7 +31,7 @@ public record SpaceCreateRequest(
 
         // 목록 순서대로 앞뒤 장면이 이어진다. 있으면 panorama_url 대신 첫 장면 URL을 저장한다.
         @JsonProperty("panorama_scenes")
-        List<PanoramaSceneRequest> panoramaScenes,
+        List<@Valid PanoramaSceneRequest> panoramaScenes,
 
         // price_inquiry가 true면 무시하고 비운다. 아니면 필수이며 양수여야 한다 (Space에서 검증)
         @JsonProperty("price_per_hour")
@@ -61,8 +64,10 @@ public record SpaceCreateRequest(
         @JsonProperty("usage_notice")
         String usageNotice,
 
+        @Size(max = 1000, message = "층 정보는 1000자 이하로 입력해 주세요.")
         String floor,
 
+        @Size(max = 1000, message = "주차 정보는 1000자 이하로 입력해 주세요.")
         @JsonProperty("parking_info")
         String parkingInfo,
 
