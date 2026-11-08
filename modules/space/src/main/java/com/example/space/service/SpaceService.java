@@ -210,11 +210,12 @@ public class SpaceService implements SpaceInternalApi {
     @Transactional
     public void updateSpace(
             String userId,
+            String role,
             Long spaceId,
             SpaceUpdateRequest request
     ) {
         Space space = getActiveSpace(spaceId);
-        validateOwner(space, userId);
+        validateOwnerOrAdmin(space, userId, role);
 
         if (request.address() != null) {
             Address address = getAddress(space.getAddressId());
@@ -241,7 +242,10 @@ public class SpaceService implements SpaceInternalApi {
         space.updateUsageNotice(request.usageNotice());
         space.updateMinCapacity(request.minCapacity());
 
-        space.applyDraftTransition(request.isDraft());
+        // 임시저장/검토 요청은 호스트의 결정이라, 관리자가 남의 공간을 고칠 때는 상태를 바꾸지 않는다.
+        if (space.isOwner(userId)) {
+            space.applyDraftTransition(request.isDraft());
+        }
 
         if (request.imageUrls() != null) {
             spaceImageRepository.deleteAllBySpaceId(spaceId);
@@ -542,11 +546,12 @@ public class SpaceService implements SpaceInternalApi {
     @Transactional
     public void updateAvailability(
             String userId,
+            String role,
             Long spaceId,
             List<SpaceAvailabilitySlotRequest> requests
     ) {
         Space space = getActiveSpace(spaceId);
-        validateOwner(space, userId);
+        validateOwnerOrAdmin(space, userId, role);
 
         if (requests == null) {
             throw new BadRequestException("가용시간 목록은 필수입니다.");
@@ -698,6 +703,18 @@ public class SpaceService implements SpaceInternalApi {
         if (!space.isOwner(userId)) {
             throw new ForbiddenException("해당 공간에 대한 권한이 없습니다.");
         }
+    }
+
+    /** 공간 정보·일정 수정은 호스트 본인과 관리자만 할 수 있다. 삭제는 여전히 호스트 본인만. */
+    private void validateOwnerOrAdmin(
+            Space space,
+            String userId,
+            String role
+    ) {
+        if (Role.ADMIN.name().equals(role)) {
+            return;
+        }
+        validateOwner(space, userId);
     }
 
     private void validateAdmin(String role) {
