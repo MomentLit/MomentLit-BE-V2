@@ -136,6 +136,7 @@ public class SpaceController {
     ) {
         spaceService.updateSpace(
                 principal.userId(),
+                principal.role().name(),
                 spaceId,
                 request
         );
@@ -254,6 +255,7 @@ public class SpaceController {
     ) {
         spaceService.updateAvailability(
                 principal.userId(),
+                principal.role().name(),
                 spaceId,
                 request
         );

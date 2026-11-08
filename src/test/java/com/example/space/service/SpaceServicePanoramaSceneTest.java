@@ -143,7 +143,7 @@ class SpaceServicePanoramaSceneTest {
         Space space = existingSpace("https://s3/old.jpg");
         when(spaceRepository.findByIdAndDeletedAtIsNull(SPACE_ID)).thenReturn(Optional.of(space));
 
-        spaceService.updateSpace(HOST_ID, SPACE_ID, updateRequest(List.of(
+        spaceService.updateSpace(HOST_ID, "USER", SPACE_ID, updateRequest(List.of(
                 new PanoramaSceneRequest("https://s3/hall.jpg", "홀", null),
                 new PanoramaSceneRequest("https://s3/room.jpg", "룸 A", null)
         )));
@@ -160,7 +160,7 @@ class SpaceServicePanoramaSceneTest {
         Space space = existingSpace("https://s3/old.jpg");
         when(spaceRepository.findByIdAndDeletedAtIsNull(SPACE_ID)).thenReturn(Optional.of(space));
 
-        spaceService.updateSpace(HOST_ID, SPACE_ID, updateRequest(null));
+        spaceService.updateSpace(HOST_ID, "USER", SPACE_ID, updateRequest(null));
 
         verify(spacePanoramaSceneRepository, never()).deleteAllBySpaceId(anyLong());
         verify(spacePanoramaSceneRepository, never()).saveAll(anyList());
@@ -174,7 +174,7 @@ class SpaceServicePanoramaSceneTest {
         Space space = existingSpace("https://s3/old.jpg");
         when(spaceRepository.findByIdAndDeletedAtIsNull(SPACE_ID)).thenReturn(Optional.of(space));
 
-        spaceService.updateSpace(HOST_ID, SPACE_ID, updateRequest(List.of()));
+        spaceService.updateSpace(HOST_ID, "USER", SPACE_ID, updateRequest(List.of()));
 
         verify(spacePanoramaSceneLinkRepository).deleteAllBySpaceId(SPACE_ID);
         verify(spacePanoramaSceneRepository).deleteAllBySpaceId(SPACE_ID);
@@ -200,7 +200,7 @@ class SpaceServicePanoramaSceneTest {
         when(spaceRepository.findByIdAndDeletedAtIsNull(SPACE_ID)).thenReturn(Optional.of(space));
         assignSceneIdsOnSave();
 
-        spaceService.updateSpace(HOST_ID, SPACE_ID, updateRequest(List.of(
+        spaceService.updateSpace(HOST_ID, "USER", SPACE_ID, updateRequest(List.of(
                 new PanoramaSceneRequest("https://s3/entrance.jpg", "입구", List.of(
                         new PanoramaSceneLinkRequest(1, 0.0),
                         new PanoramaSceneLinkRequest(2, Math.PI / 2)
@@ -227,7 +227,7 @@ class SpaceServicePanoramaSceneTest {
         when(spaceRepository.findByIdAndDeletedAtIsNull(SPACE_ID)).thenReturn(Optional.of(space));
         assignSceneIdsOnSave();
 
-        spaceService.updateSpace(HOST_ID, SPACE_ID, updateRequest(List.of(
+        spaceService.updateSpace(HOST_ID, "USER", SPACE_ID, updateRequest(List.of(
                 new PanoramaSceneRequest("https://s3/hall.jpg", "홀", null),
                 new PanoramaSceneRequest("https://s3/room.jpg", "룸 A", List.of())
         )));
@@ -268,7 +268,7 @@ class SpaceServicePanoramaSceneTest {
         when(spaceRepository.findByIdAndDeletedAtIsNull(SPACE_ID)).thenReturn(Optional.of(space));
         assignSceneIdsOnSave();
 
-        assertThatThrownBy(() -> spaceService.updateSpace(HOST_ID, SPACE_ID, updateRequest(List.of(
+        assertThatThrownBy(() -> spaceService.updateSpace(HOST_ID, "USER", SPACE_ID, updateRequest(List.of(
                 new PanoramaSceneRequest("https://s3/hall.jpg", "홀", links),
                 new PanoramaSceneRequest("https://s3/room.jpg", "룸 A", null)
         )))).isInstanceOf(BadRequestException.class);
