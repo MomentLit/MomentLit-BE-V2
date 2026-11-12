@@ -328,7 +328,8 @@ class SpaceServicePanoramaSceneTest {
                 null,
                 SpaceCategory.POPUP_STORE,
                 null, null, null, null, null, null, null, null, null, null,
-                false
+                false,
+                null, null, null, null
         );
     }
 
@@ -336,7 +337,8 @@ class SpaceServicePanoramaSceneTest {
         return new SpaceUpdateRequest(
                 null, null, null, null, null, null, null,
                 panoramaScenes,
-                null, null, null, null, null, null, null, null, null, null, null, null, null, null
+                null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null
         );
     }
 }

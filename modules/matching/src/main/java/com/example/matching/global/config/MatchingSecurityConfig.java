@@ -36,6 +36,8 @@ public class MatchingSecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // 공간 상세 화면의 호스트 정보 카드(응답률/평균 응답시간)에서 비로그인 사용자도 조회 가능해야 한다.
                         .requestMatchers(HttpMethod.GET, "/matchings/host-stats/**").permitAll()
+                        // 공간 상세의 시간 선택기 — 비로그인 사용자도 찬 시간대를 봐야 한다. 시간만 내려준다.
+                        .requestMatchers(HttpMethod.GET, "/matchings/spaces/*/booked-times").permitAll()
                         .requestMatchers("/matchings/**").authenticated()
                         .anyRequest().permitAll()
                 )
