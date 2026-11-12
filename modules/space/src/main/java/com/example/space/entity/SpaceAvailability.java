@@ -9,6 +9,9 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.DayOfWeek;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * 호스트가 설정하는 "매주 반복되는 가용시간" 템플릿.
@@ -80,6 +83,33 @@ public class SpaceAvailability {
                 .endTime(endTime)
                 .isOpen(isOpen)
                 .build();
+    }
+
+    /**
+     * 열린 슬롯들을 시작 시각부터 차례로 이어 붙여 [startTime, endTime)을 빈틈 없이 덮는지.
+     * 요청의 시작·종료 시각은 슬롯 경계와 정확히 맞아야 한다 — 슬롯 중간에서 시작하거나 끝나면 false.
+     * 같은 시각에 시작하는 슬롯이 여러 개면 짧은 쪽을 따라가 경계를 잘게 맞춘다.
+     */
+    public static boolean coversConsecutively(
+            List<SpaceAvailability> openSlots,
+            LocalTime startTime,
+            LocalTime endTime
+    ) {
+        Map<LocalTime, LocalTime> endByStart = new HashMap<>();
+        for (SpaceAvailability slot : openSlots) {
+            endByStart.merge(slot.getStartTime(), slot.getEndTime(), (a, b) -> a.isBefore(b) ? a : b);
+        }
+
+        LocalTime cursor = startTime;
+        while (cursor.isBefore(endTime)) {
+            LocalTime next = endByStart.get(cursor);
+            // 다음 슬롯이 없거나, 자정을 넘겨 0시로 돌아온 경우(무한 루프 방지)
+            if (next == null || !next.isAfter(cursor)) {
+                return false;
+            }
+            cursor = next;
+        }
+        return cursor.equals(endTime);
     }
 
     private static void validate(

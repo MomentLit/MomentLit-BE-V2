@@ -63,6 +63,10 @@ Table Spaces {
   is_active boolean [not null, note: "코드가 생성 시점에 true로 채움 (DB 레벨 default 없음)"]
   category SpaceCategory [not null]
   phone varchar
+  allow_consecutive_booking boolean [not null, default: false, note: "이어진 예약 슬롯 여러 개를 한 번에 예약받을지"]
+  min_usage_hours int [note: "시간 단위 공간의 최소 이용 시간. null이면 제한 없음"]
+  base_guest_count int [note: "인원 초과 요금 기준 인원. extra_guest_fee와 둘 다 있거나 둘 다 null"]
+  extra_guest_fee int [note: "기준 인원 초과 1인당 추가 요금(이용 단위당)"]
   created_at datetime [default: `now()`]
   updated_at datetime [default: `now()`]
   deleted_at datetime

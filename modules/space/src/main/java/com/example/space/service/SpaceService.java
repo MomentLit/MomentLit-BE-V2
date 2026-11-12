@@ -132,6 +132,9 @@ public class SpaceService implements SpaceInternalApi {
         space.updateBooking(request.bookingType(), request.externalBookingUrl());
         space.updateUsageNotice(request.usageNotice());
         space.updateMinCapacity(request.minCapacity());
+        space.updateConsecutiveBooking(request.allowConsecutiveBooking());
+        space.updateMinUsageHours(request.minUsageHours());
+        space.updateExtraGuestFee(request.baseGuestCount(), request.extraGuestFee());
 
         Space savedSpace = spaceRepository.save(space);
 
@@ -241,6 +244,9 @@ public class SpaceService implements SpaceInternalApi {
         space.updateBooking(request.bookingType(), request.externalBookingUrl());
         space.updateUsageNotice(request.usageNotice());
         space.updateMinCapacity(request.minCapacity());
+        space.updateConsecutiveBooking(request.allowConsecutiveBooking());
+        space.updateMinUsageHours(request.minUsageHours());
+        space.updateExtraGuestFee(request.baseGuestCount(), request.extraGuestFee());
 
         // 임시저장/검토 요청은 호스트의 결정이라, 관리자가 남의 공간을 고칠 때는 상태를 바꾸지 않는다.
         if (space.isOwner(userId)) {
@@ -408,6 +414,21 @@ public class SpaceService implements SpaceInternalApi {
                     );
         }
 
+        // 연속 예약을 허용한 공간은 슬롯 하나에 안 들어가도, 그날 열린 슬롯들이 빈틈 없이
+        // 이어져 요청 구간을 덮으면 예약할 수 있다. 꺼져 있으면 위 결과(기존 동작) 그대로다.
+        if (!available
+                && Boolean.TRUE.equals(space.getAllowConsecutiveBooking())
+                && startTime.toLocalDate().equals(endTime.toLocalDate())) {
+            available = SpaceAvailability.coversConsecutively(
+                    spaceAvailabilityRepository.findAllBySpaceIdAndDayOfWeekAndIsOpenTrue(
+                            spaceId,
+                            startTime.getDayOfWeek()
+                    ),
+                    startTime.toLocalTime(),
+                    endTime.toLocalTime()
+            );
+        }
+
         return new SpaceMatchingContextResponse(
                 space.getId(),
                 space.getHostId(),
@@ -416,7 +437,13 @@ public class SpaceService implements SpaceInternalApi {
                 available,
                 space.getCapacity(),
                 space.isExternalBooking(),
-                space.getMinCapacity()
+                space.getMinCapacity(),
+                space.getPricePerHour(),
+                Boolean.TRUE.equals(space.getPriceInquiry()),
+                space.getUsageUnit(),
+                space.getMinUsageHours(),
+                space.getBaseGuestCount(),
+                space.getExtraGuestFee()
         );
     }
 

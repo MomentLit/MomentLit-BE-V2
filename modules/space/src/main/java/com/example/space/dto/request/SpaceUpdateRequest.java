@@ -87,7 +87,26 @@ public record SpaceUpdateRequest(
         String externalBookingUrl,
 
         @JsonProperty("is_draft")
-        Boolean isDraft
+        Boolean isDraft,
+
+        // 이어진 예약 슬롯 여러 개를 한 번에 예약받을지. 등록 시 null이면 false, 수정 시 null이면 변경 없음
+        @JsonProperty("allow_consecutive_booking")
+        Boolean allowConsecutiveBooking,
+
+        // 시간 단위 공간의 최소 이용 시간. 수정 시 null이면 변경 없음, 0이면 삭제
+        @PositiveOrZero
+        @JsonProperty("min_usage_hours")
+        Integer minUsageHours,
+
+        // 인원 초과 요금의 기준 인원. 처음 설정할 때는 extra_guest_fee와 함께 보낸다
+        @PositiveOrZero
+        @JsonProperty("base_guest_count")
+        Integer baseGuestCount,
+
+        // 기준 인원 초과 1인당 추가 요금(이용 단위당). 수정 시 null이면 변경 없음, 0이면 기준 인원과 함께 삭제
+        @PositiveOrZero
+        @JsonProperty("extra_guest_fee")
+        Integer extraGuestFee
 ) {
     /** 소개 문구의 근거가 되는 필드가 하나라도 바뀌면 비동기 재생성한다. */
     public boolean hasAiSummarySourceChanges() {

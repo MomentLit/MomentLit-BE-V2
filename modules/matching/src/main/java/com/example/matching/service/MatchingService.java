@@ -2,6 +2,7 @@ package com.example.matching.service;
 
 import com.example.alarm.api.AlarmInternalApi;
 import com.example.matching.dto.request.MatchingCreateRequest;
+import com.example.matching.dto.response.BookedTimeListResponse;
 import com.example.matching.dto.response.HostStatsResponse;
 import com.example.matching.dto.response.InternalMatchingResponse;
 import com.example.matching.dto.response.MatchingCreateResponse;
@@ -17,6 +18,7 @@ import com.example.matching.global.exception.MatchingNotFoundException;
 import com.example.matching.repository.MatchingRepository;
 import com.example.space.api.SpaceInternalApi;
 import com.example.space.dto.response.SpaceMatchingContextResponse;
+import com.example.space.entity.UsageUnit;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,8 +46,6 @@ public class MatchingService implements MatchingInternalApi {
             throw new BadRequestException("종료 시간은 시작 시간 이후여야 합니다.");
         }
 
-        Integer totalPrice = parsePrice(request.totalPrice());
-
         // 기존 요청이 없는 공간도 잠가 동시 중복 생성과 승인 직후 요청을 방지한다.
         spaceApi.lockSpaceForMatching(request.spaceId());
         SpaceMatchingContextResponse space =
@@ -53,6 +53,19 @@ public class MatchingService implements MatchingInternalApi {
 
         validateSpaceForMatching(userId, space);
         validateGuestCount(space, request.guestCount());
+
+        long durationMinutes = Duration.between(startTime, endTime).toMinutes();
+        validateMinUsageHours(space, durationMinutes);
+        // 요청의 total_price는 쓰지 않고 공간 요금으로 다시 계산한다.
+        Integer totalPrice = BookingPriceCalculator.calculate(
+                space.pricePerHour(),
+                space.priceInquiry(),
+                space.usageUnit(),
+                space.baseGuestCount(),
+                space.extraGuestFee(),
+                request.guestCount(),
+                durationMinutes
+        );
 
         Matching matching = Matching.create(
                 request.spaceId(),
@@ -81,6 +94,18 @@ public class MatchingService implements MatchingInternalApi {
     @Transactional(readOnly = true)
     public MatchingListResponse getSentMatchings(String userId) {
         return toListResponse(matchingRepository.findBySellerIdOrderByCreatedAtDesc(userId));
+    }
+
+    /** 아직 끝나지 않은 승인 예약의 시간대 — 공간 상세에서 찬 시간대를 막는 용도. */
+    @Transactional(readOnly = true)
+    public BookedTimeListResponse getBookedTimes(Long spaceId) {
+        return BookedTimeListResponse.from(
+                matchingRepository.findBySpaceIdAndStatusAndEndTimeAfterOrderByStartTimeAsc(
+                        spaceId,
+                        MatchingStatus.APPROVED,
+                        LocalDateTime.now()
+                )
+        );
     }
 
     @Override
@@ -222,6 +247,16 @@ public class MatchingService implements MatchingInternalApi {
         }
     }
 
+    /** 최소 이용 시간은 시간 단위 공간에서만 본다 — DAILY는 하루 단위라 의미가 없다. */
+    private void validateMinUsageHours(SpaceMatchingContextResponse space, long durationMinutes) {
+        if (space.minUsageHours() == null || space.usageUnit() == UsageUnit.DAILY) {
+            return;
+        }
+        if (durationMinutes < space.minUsageHours() * 60L) {
+            throw new BadRequestException("최소 이용 시간(" + space.minUsageHours() + "시간)보다 짧습니다.");
+        }
+    }
+
     private void validateNoDuplicateRequest(Matching target, List<Matching> spaceMatchings) {
         boolean duplicate = spaceMatchings.stream()
                 .filter(matching -> matching.getStatus() == MatchingStatus.REQUESTED)
@@ -266,18 +301,6 @@ public class MatchingService implements MatchingInternalApi {
             } catch (Exception ignored) {
                 throw new BadRequestException("시간 형식이 올바르지 않습니다.");
             }
-        }
-    }
-
-    private Integer parsePrice(String value) {
-        try {
-            Integer totalPrice = Integer.valueOf(value);
-            if (totalPrice < 0) {
-                throw new BadRequestException("총 금액은 음수일 수 없습니다.");
-            }
-            return totalPrice;
-        } catch (NumberFormatException e) {
-            throw new BadRequestException("총 금액 형식이 올바르지 않습니다.");
         }
     }
 }

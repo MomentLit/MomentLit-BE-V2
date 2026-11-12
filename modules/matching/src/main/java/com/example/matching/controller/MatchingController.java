@@ -4,6 +4,7 @@ import com.example.common.dto.ApiResponse;
 import com.example.common.security.UserPrincipal;
 import com.example.common.util.ResponseUtil;
 import com.example.matching.dto.request.MatchingCreateRequest;
+import com.example.matching.dto.response.BookedTimeListResponse;
 import com.example.matching.dto.response.HostStatsResponse;
 import com.example.matching.dto.response.MatchingCreateResponse;
 import com.example.matching.dto.response.MatchingListResponse;
@@ -80,6 +81,16 @@ public class MatchingController {
         matchingService.cancel(principal.userId(), matchingId);
 
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/spaces/{space-id}/booked-times")
+    public ResponseEntity<ApiResponse<BookedTimeListResponse>> getBookedTimes(
+            @PathVariable("space-id") Long spaceId
+    ) {
+        BookedTimeListResponse response = matchingService.getBookedTimes(spaceId);
+        ApiResponse<BookedTimeListResponse> apiResponse = ResponseUtil.success("select booked times", response);
+
+        return ResponseEntity.ok(apiResponse);
     }
 
     @GetMapping("/host-stats/{host-id}")
