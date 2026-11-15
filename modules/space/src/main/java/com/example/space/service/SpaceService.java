@@ -74,6 +74,8 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -191,6 +193,36 @@ public class SpaceService implements SpaceInternalApi {
                 spaces,
                 space -> SpaceListResponse.from(space, AddressResponse.from(addresses.get(space.getAddressId())))
         );
+    }
+
+    @Override
+    public boolean isActiveSpace(Long spaceId) {
+        return spaceRepository.existsByIdAndDeletedAtIsNull(spaceId);
+    }
+
+    @Override
+    public Set<Long> getDeletedSpaceIds() {
+        return new HashSet<>(spaceRepository.findDeletedIds());
+    }
+
+    @Override
+    public Map<Long, AddressResponse> getActiveSpaceAddresses(Collection<Long> spaceIds) {
+        if (spaceIds.isEmpty()) {
+            return Map.of();
+        }
+        List<Space> spaces = spaceRepository.findByIdInAndDeletedAtIsNull(spaceIds.stream().distinct().toList());
+        Map<Long, Address> addresses = addressRepository.findAllById(
+                spaces.stream().map(Space::getAddressId).distinct().toList()
+        ).stream().collect(Collectors.toMap(Address::getId, Function.identity()));
+
+        Map<Long, AddressResponse> result = new HashMap<>();
+        for (Space space : spaces) {
+            Address address = addresses.get(space.getAddressId());
+            if (address != null) {
+                result.put(space.getId(), AddressResponse.from(address));
+            }
+        }
+        return result;
     }
 
     @Override

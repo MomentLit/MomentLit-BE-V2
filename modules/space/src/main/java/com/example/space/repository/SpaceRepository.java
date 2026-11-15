@@ -32,6 +32,12 @@ public interface SpaceRepository extends JpaRepository<Space, Long> {
 
     List<Space> findByIdInAndDeletedAtIsNull(List<Long> ids);
 
+    /** 소프트 삭제된 공간 id — 다른 모듈이 삭제된 공간에 딸린 데이터를 목록에서 거를 때 쓴다. */
+    @Query("select s.id from Space s where s.deletedAt is not null")
+    List<Long> findDeletedIds();
+
+    boolean existsByIdAndDeletedAtIsNull(Long id);
+
     /**
      * 공개 검색용 조건부 필터 + 페이지네이션 조회.
      * Address와는 JPA 연관관계가 없으므로(전 프로젝트 컨벤션) theta join(콤마 조인)으로 region을 필터링한다.
