@@ -1,7 +1,7 @@
 package com.example.popup.dto.response;
 
 import com.example.popup.entity.Popup;
-import com.example.space.dto.response.SpaceDetailResponse;
+import com.example.space.dto.response.AddressResponse;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.time.LocalDateTime;
@@ -12,7 +12,7 @@ public record PopupListResponse(
 
         String title,
 
-        com.example.space.dto.response.AddressResponse address,
+        AddressResponse address,
 
         @JsonProperty("thumbnail_url")
         String thumbnailUrl,
@@ -32,12 +32,12 @@ public record PopupListResponse(
 
     public static PopupListResponse from(
             Popup popup,
-            SpaceDetailResponse space
+            AddressResponse address
     ) {
         return new PopupListResponse(
                 popup.getId(),
                 popup.getTitle(),
-                space.address(),
+                address,
                 popup.getThumbnailUrl(),
                 popup.getStartTime(),
                 popup.getEndTime(),

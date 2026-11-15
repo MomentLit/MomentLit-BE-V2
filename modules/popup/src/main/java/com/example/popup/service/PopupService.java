@@ -13,6 +13,7 @@ import com.example.popup.global.exception.InvalidPopupStateException;
 import com.example.popup.global.exception.PopupNotFoundException;
 import com.example.popup.repository.PopupRepository;
 import com.example.space.api.SpaceInternalApi;
+import com.example.space.dto.response.AddressResponse;
 import com.example.space.dto.response.SpaceDetailResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -23,6 +24,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -69,17 +73,28 @@ public class PopupService {
         return PopupCreateResponse.from(savedPopup);
     }
 
+    /**
+     * 공간이 (소프트) 삭제된 팝업은 목록에서 뺀다. 예전에는 팝업마다 공간 상세를 조회해서,
+     * 삭제된 공간에 딸린 팝업이 한 건만 있어도 SpaceNotFoundException으로 목록 전체가 404가 됐다.
+     */
     public PageResponse<PopupListResponse> getPopups(Pageable pageable) {
-        Page<Popup> popups = popupRepository.findAll(pageable);
+        Set<Long> deletedSpaceIds = spaceApi.getDeletedSpaceIds();
+        Page<Popup> popups = deletedSpaceIds.isEmpty()
+                ? popupRepository.findAll(pageable)
+                : popupRepository.findAllBySpaceIdNotIn(deletedSpaceIds, pageable);
+        Map<Long, AddressResponse> addresses = getAddresses(popups.getContent());
 
         return PageResponse.from(
                 popups,
-                popup -> PopupListResponse.from(popup, spaceApi.getSpace(popup.getSpaceId()))
+                popup -> PopupListResponse.from(popup, addresses.get(popup.getSpaceId()))
         );
     }
 
     public PopupListResponses getRecommendations() {
-        return toListResponses(popupRepository.findTop10ByOrderByLikeCountDescViewCountDescCreatedAtDesc());
+        Set<Long> deletedSpaceIds = spaceApi.getDeletedSpaceIds();
+        return toListResponses(deletedSpaceIds.isEmpty()
+                ? popupRepository.findTop10ByOrderByLikeCountDescViewCountDescCreatedAtDesc()
+                : popupRepository.findTop10BySpaceIdNotInOrderByLikeCountDescViewCountDescCreatedAtDesc(deletedSpaceIds));
     }
 
     public PopupListResponses getMyPopups(String userId) {
@@ -89,6 +104,11 @@ public class PopupService {
     @Transactional
     public PopupDetailResponse getPopup(Long popupId) {
         Popup popup = getPopupEntity(popupId);
+        // 공간이 삭제된 팝업은 없는 팝업으로 본다. getSpace의 예외에 맡기면 "공간을 찾을 수 없습니다"가
+        // 나가고 이 트랜잭션도 rollback-only가 되므로, 조회수를 올리기 전에 예외 없이 먼저 확인한다.
+        if (!spaceApi.isActiveSpace(popup.getSpaceId())) {
+            throw new PopupNotFoundException("팝업을 찾을 수 없습니다.");
+        }
         popup.increaseViewCount();
 
         SpaceDetailResponse space = spaceApi.getSpace(popup.getSpaceId());
@@ -109,15 +129,21 @@ public class PopupService {
         return toListResponses(popupRepository.findAllBySellerIdOrderByCreatedAtDesc(sellerId));
     }
 
+    /** 주소를 한 번에 조회하고, 그 사이 공간이 삭제돼 주소가 없는 팝업은 건너뛴다. */
     private PopupListResponses toListResponses(List<Popup> popups) {
+        Map<Long, AddressResponse> addresses = getAddresses(popups);
         List<PopupListResponse> responses = popups.stream()
-                .map(popup -> PopupListResponse.from(
-                        popup,
-                        spaceApi.getSpace(popup.getSpaceId())
-                ))
+                .filter(popup -> addresses.containsKey(popup.getSpaceId()))
+                .map(popup -> PopupListResponse.from(popup, addresses.get(popup.getSpaceId())))
                 .toList();
 
         return new PopupListResponses(responses);
+    }
+
+    private Map<Long, AddressResponse> getAddresses(List<Popup> popups) {
+        return spaceApi.getActiveSpaceAddresses(
+                popups.stream().map(Popup::getSpaceId).filter(Objects::nonNull).distinct().toList()
+        );
     }
 
     private Popup getPopupEntity(Long popupId) {
