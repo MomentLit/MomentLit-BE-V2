@@ -94,7 +94,8 @@ class SpaceServiceAdminEditTest {
     private SpaceUpdateRequest updateRequest(String parkingInfo, Boolean isDraft) {
         return new SpaceUpdateRequest(
                 null, null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, parkingInfo, null, null, null, isDraft
+                null, null, null, null, null, null, parkingInfo, null, null, null, isDraft,
+                null, null, null, null
         );
     }
 

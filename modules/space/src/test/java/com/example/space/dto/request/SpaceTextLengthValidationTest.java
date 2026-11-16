@@ -41,7 +41,8 @@ class SpaceTextLengthValidationTest {
                                              List<PanoramaSceneRequest> panoramaScenes) {
         return new SpaceCreateRequest(
                 name, "소개", address, null, null, null, panoramaScenes, 10000, null, SpaceCategory.STUDIO,
-                null, null, null, null, null, floor, parkingInfo, null, null, null, false
+                null, null, null, null, null, floor, parkingInfo, null, null, null, false,
+                null, null, null, null
         );
     }
 
@@ -49,7 +50,8 @@ class SpaceTextLengthValidationTest {
                                              List<PanoramaSceneRequest> panoramaScenes) {
         return new SpaceUpdateRequest(
                 name, null, address, null, null, null, null, panoramaScenes, null, null, null,
-                null, null, null, null, null, floor, parkingInfo, null, null, null, null
+                null, null, null, null, null, floor, parkingInfo, null, null, null, null,
+                null, null, null, null
         );
     }
 

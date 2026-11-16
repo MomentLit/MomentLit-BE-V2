@@ -27,4 +27,7 @@ public interface SpaceAvailabilityRepository extends JpaRepository<SpaceAvailabi
             LocalTime startTime,
             LocalTime endTime
     );
+
+    /** 연속 예약 검사용 — 그 요일에 열린 슬롯 전부. */
+    List<SpaceAvailability> findAllBySpaceIdAndDayOfWeekAndIsOpenTrue(Long spaceId, DayOfWeek dayOfWeek);
 }

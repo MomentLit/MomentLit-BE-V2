@@ -1,5 +1,6 @@
 package com.example.space.dto.response;
 
+import com.example.space.entity.UsageUnit;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 public record SpaceMatchingContextResponse(
@@ -24,6 +25,27 @@ public record SpaceMatchingContextResponse(
 
         /** null이면 최소 인원 제한 없음. */
         @JsonProperty("min_capacity")
-        Integer minCapacity
+        Integer minCapacity,
+
+        /** 가격 문의 공간이면 null. DAILY 공간에서는 1일 요금이다. */
+        @JsonProperty("price_per_hour")
+        Integer pricePerHour,
+
+        @JsonProperty("price_inquiry")
+        boolean priceInquiry,
+
+        @JsonProperty("usage_unit")
+        UsageUnit usageUnit,
+
+        /** null이면 최소 이용 시간 제한 없음. */
+        @JsonProperty("min_usage_hours")
+        Integer minUsageHours,
+
+        /** 인원 초과 요금 — 둘 다 null이면 초과 요금 없음. */
+        @JsonProperty("base_guest_count")
+        Integer baseGuestCount,
+
+        @JsonProperty("extra_guest_fee")
+        Integer extraGuestFee
 ) {
 }

@@ -98,6 +98,21 @@ public class Space {
     @Column(name = "external_booking_url", length = 2048)
     private String externalBookingUrl;
 
+    // 이어진 예약 슬롯 여러 개를 한 번에 예약받을지
+    @Column(name = "allow_consecutive_booking", nullable = false)
+    private Boolean allowConsecutiveBooking;
+
+    // 시간 단위 공간의 최소 이용 시간. null이면 제한 없음
+    @Column(name = "min_usage_hours")
+    private Integer minUsageHours;
+
+    // 기준 인원과 초과 1인당 추가 요금(이용 단위당). 둘 다 있거나 둘 다 null
+    @Column(name = "base_guest_count")
+    private Integer baseGuestCount;
+
+    @Column(name = "extra_guest_fee")
+    private Integer extraGuestFee;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -146,6 +161,7 @@ public class Space {
         this.parkingInfo = parkingInfo;
         this.usageUnit = usageUnit;
         this.bookingType = BookingType.INTERNAL;
+        this.allowConsecutiveBooking = false;
     }
 
     public static Space create(
@@ -358,6 +374,57 @@ public class Space {
 
         if (this.minCapacity != null && this.capacity != null && this.minCapacity > this.capacity) {
             throw new BadRequestException("최소 인원은 최대 인원보다 많을 수 없습니다.");
+        }
+    }
+
+    /** 연속 예약 허용 여부 변경. null이면 변경하지 않는다. */
+    public void updateConsecutiveBooking(Boolean allowConsecutiveBooking) {
+        if (allowConsecutiveBooking != null) {
+            this.allowConsecutiveBooking = allowConsecutiveBooking;
+        }
+    }
+
+    /** 최소 이용 시간 변경. null이면 변경하지 않고, 0이면 지운다. */
+    public void updateMinUsageHours(Integer minUsageHours) {
+        if (minUsageHours == null) {
+            return;
+        }
+        if (minUsageHours < 0) {
+            throw new BadRequestException("최소 이용 시간은 0보다 작을 수 없습니다.");
+        }
+
+        this.minUsageHours = minUsageHours == 0 ? null : minUsageHours;
+    }
+
+    /**
+     * 인원 초과 요금 변경. 둘 다 null이면 변경하지 않고, 추가 요금이 0이면 기준 인원과 함께 지운다.
+     * 한쪽만 보내면 다른 쪽은 기존 값을 쓰므로, 처음 설정할 때는 둘 다 보내야 한다.
+     * 기준 인원이 최대 인원(capacity)보다 크면 거부한다 — capacity를 먼저 반영한 뒤 호출해야 한다.
+     */
+    public void updateExtraGuestFee(Integer baseGuestCount, Integer extraGuestFee) {
+        if (extraGuestFee != null && extraGuestFee == 0) {
+            this.baseGuestCount = null;
+            this.extraGuestFee = null;
+        } else if (baseGuestCount != null || extraGuestFee != null) {
+            Integer nextBase = baseGuestCount != null ? baseGuestCount : this.baseGuestCount;
+            Integer nextFee = extraGuestFee != null ? extraGuestFee : this.extraGuestFee;
+
+            if (nextBase == null || nextFee == null) {
+                throw new BadRequestException("기준 인원과 1인당 추가 요금을 함께 입력해야 합니다.");
+            }
+            if (nextBase <= 0) {
+                throw new BadRequestException("기준 인원은 1명 이상이어야 합니다.");
+            }
+            if (nextFee < 0) {
+                throw new BadRequestException("1인당 추가 요금은 0보다 작을 수 없습니다.");
+            }
+
+            this.baseGuestCount = nextBase;
+            this.extraGuestFee = nextFee;
+        }
+
+        if (this.baseGuestCount != null && this.capacity != null && this.baseGuestCount > this.capacity) {
+            throw new BadRequestException("기준 인원은 최대 인원보다 많을 수 없습니다.");
         }
     }
 

@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import jakarta.persistence.LockModeType;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -45,4 +46,10 @@ public interface MatchingRepository extends JpaRepository<Matching, Long> {
     );
 
     List<Matching> findByHostIdAndStatusIn(String hostId, List<MatchingStatus> statuses);
+
+    List<Matching> findBySpaceIdAndStatusAndEndTimeAfterOrderByStartTimeAsc(
+            Long spaceId,
+            MatchingStatus status,
+            LocalDateTime endTime
+    );
 }

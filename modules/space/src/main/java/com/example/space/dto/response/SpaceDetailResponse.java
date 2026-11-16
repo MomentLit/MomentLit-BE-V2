@@ -84,7 +84,19 @@ public record SpaceDetailResponse(
         String bookingType,
 
         @JsonProperty("external_booking_url")
-        String externalBookingUrl
+        String externalBookingUrl,
+
+        @JsonProperty("allow_consecutive_booking")
+        Boolean allowConsecutiveBooking,
+
+        @JsonProperty("min_usage_hours")
+        Integer minUsageHours,
+
+        @JsonProperty("base_guest_count")
+        Integer baseGuestCount,
+
+        @JsonProperty("extra_guest_fee")
+        Integer extraGuestFee
 ) {
 
     public static SpaceDetailResponse from(
@@ -126,7 +138,11 @@ public record SpaceDetailResponse(
                 space.getUsageUnit() != null ? space.getUsageUnit().name() : null,
                 space.getAdminStatus().name(),
                 space.getBookingType().name(),
-                space.getExternalBookingUrl()
+                space.getExternalBookingUrl(),
+                space.getAllowConsecutiveBooking(),
+                space.getMinUsageHours(),
+                space.getBaseGuestCount(),
+                space.getExtraGuestFee()
         );
     }
 }
