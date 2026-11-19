@@ -16,7 +16,7 @@ import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 
-/** 로그인한 사용자가 이름을 붙여 저장한 가구 배치(공간마다 여러 개). furniture는 가구 목록 JSON 배열. */
+/** 로그인한 사용자가 이름을 붙여 저장한 가구 배치(3D 방마다 여러 개). furniture는 가구 목록 JSON 배열. */
 @Getter
 @Entity
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -29,6 +29,9 @@ public class SpaceRoomLayout {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "room_id", nullable = false)
+    private Long roomId;
 
     @Column(name = "space_id", nullable = false)
     private Long spaceId;
@@ -51,8 +54,9 @@ public class SpaceRoomLayout {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    public static SpaceRoomLayout create(Long spaceId, String userId, String name, String furniture) {
+    public static SpaceRoomLayout create(Long roomId, Long spaceId, String userId, String name, String furniture) {
         SpaceRoomLayout layout = new SpaceRoomLayout();
+        layout.roomId = roomId;
         layout.spaceId = spaceId;
         layout.userId = userId;
         layout.update(name, furniture);

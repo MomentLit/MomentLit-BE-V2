@@ -8,9 +8,11 @@ import java.util.Optional;
 
 public interface SpaceRoomLayoutRepository extends JpaRepository<SpaceRoomLayout, Long> {
 
-    List<SpaceRoomLayout> findAllBySpaceIdAndUserIdOrderByUpdatedAtDesc(Long spaceId, String userId);
+    List<SpaceRoomLayout> findAllByRoomIdAndUserIdOrderByUpdatedAtDesc(Long roomId, String userId);
 
-    long countBySpaceIdAndUserId(Long spaceId, String userId);
+    long countByRoomIdAndUserId(Long roomId, String userId);
 
-    Optional<SpaceRoomLayout> findByIdAndSpaceIdAndUserId(Long id, Long spaceId, String userId);
+    Optional<SpaceRoomLayout> findByIdAndRoomIdAndUserId(Long id, Long roomId, String userId);
+
+    void deleteAllByRoomId(Long roomId);
 }

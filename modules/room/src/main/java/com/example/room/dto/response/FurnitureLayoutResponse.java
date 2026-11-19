@@ -10,6 +10,9 @@ public record FurnitureLayoutResponse(
         @JsonProperty("layout_id")
         Long layoutId,
 
+        @JsonProperty("room_id")
+        Long roomId,
+
         @JsonProperty("space_id")
         Long spaceId,
 

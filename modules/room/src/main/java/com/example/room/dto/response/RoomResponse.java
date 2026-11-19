@@ -8,11 +8,19 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.LocalDateTime;
 
 public record RoomResponse(
+        @JsonProperty("room_id")
+        Long roomId,
+
         @JsonProperty("space_id")
         Long spaceId,
 
-        @JsonProperty("scene_id")
-        Long sceneId,
+        String name,
+
+        @JsonProperty("sort_order")
+        Integer sortOrder,
+
+        @JsonProperty("scene_image_url")
+        String sceneImageUrl,
 
         RoomSource source,
 
@@ -41,8 +49,11 @@ public record RoomResponse(
 
     public static RoomResponse of(SpaceRoom room, RoomGeometry geometry) {
         return new RoomResponse(
+                room.getId(),
                 room.getSpaceId(),
-                room.getSceneId(),
+                room.getName(),
+                room.getSortOrder(),
+                room.getSceneImageUrl(),
                 room.getSource(),
                 room.getImageUrl(),
                 room.getCeilingHeight(),

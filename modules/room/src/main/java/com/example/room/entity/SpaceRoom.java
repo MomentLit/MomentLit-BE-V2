@@ -8,7 +8,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -19,15 +18,11 @@ import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 
-/** 공간의 3D 방 모델(공간당 하나). geometry는 RoomGeometry를 직렬화한 JSON. */
+/** 공간의 3D 방 하나(360도 장면마다 하나). geometry는 RoomGeometry를 직렬화한 JSON. */
 @Getter
 @Entity
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(
-        name = "space_rooms",
-        schema = "spaces",
-        uniqueConstraints = @UniqueConstraint(name = "uk_space_rooms_space_id", columnNames = "space_id")
-)
+@Table(name = "space_rooms", schema = "spaces")
 public class SpaceRoom {
 
     @Id
@@ -37,8 +32,14 @@ public class SpaceRoom {
     @Column(name = "space_id", nullable = false)
     private Long spaceId;
 
-    @Column(name = "scene_id")
-    private Long sceneId;
+    @Column(nullable = false, length = 100)
+    private String name;
+
+    @Column(name = "sort_order", nullable = false)
+    private Integer sortOrder;
+
+    @Column(name = "scene_image_url")
+    private String sceneImageUrl;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -75,7 +76,9 @@ public class SpaceRoom {
     }
 
     public void update(
-            Long sceneId,
+            String name,
+            Integer sortOrder,
+            String sceneImageUrl,
             RoomSource source,
             String imageUrl,
             Double ceilingHeight,
@@ -83,7 +86,9 @@ public class SpaceRoom {
             Double areaM2,
             String geometry
     ) {
-        this.sceneId = sceneId;
+        this.name = name.trim();
+        this.sortOrder = sortOrder;
+        this.sceneImageUrl = sceneImageUrl;
         this.source = source;
         this.imageUrl = imageUrl;
         this.ceilingHeight = ceilingHeight;
