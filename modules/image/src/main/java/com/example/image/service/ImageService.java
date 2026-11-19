@@ -6,6 +6,7 @@ import com.example.image.global.client.PanoramaStitchClient.StitchedPanorama;
 import com.example.image.global.exception.EmptyImageFileException;
 import com.example.image.global.exception.ImageUploadFailedException;
 import com.example.image.global.exception.InvalidImageTypeException;
+import com.example.image.global.exception.InvalidImageUrlException;
 import com.example.image.global.exception.InvalidPanoramaRatioException;
 import com.example.image.global.exception.PanoramaImageCountException;
 import com.example.image.global.exception.PanoramaStitchFailedException;
@@ -25,6 +26,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 @Service
@@ -113,6 +116,45 @@ public class ImageService {
         byte[] bytes = privacyBlurService.blur(stitched.bytes(), extension, true);
 
         return putImage(bytes, stitched.contentType(), extension);
+    }
+
+    /** 이 서비스가 올린 이미지 URL인지 — 버킷 주소 + images/ 아래 키만 인정한다. */
+    public boolean isOwnImageUrl(String imageUrl) {
+        return extractOwnImageKey(imageUrl) != null;
+    }
+
+    /**
+     * 우리 버킷에 올라간 이미지를 내려받는다. 다른 서비스(방 구조 추론 등)에 넘기기 위한 것이라
+     * HTTP로 가져오지 않고 S3에서 키로 직접 읽는다 — 임의 URL을 서버가 대신 요청하지 않도록.
+     */
+    public byte[] downloadOwnImage(String imageUrl) {
+        String key = extractOwnImageKey(imageUrl);
+        if (key == null) {
+            throw new InvalidImageUrlException("이 서비스에 올린 이미지 URL이 아닙니다.");
+        }
+        try {
+            return s3Client.getObjectAsBytes(GetObjectRequest.builder().bucket(bucket).key(key).build()).asByteArray();
+        } catch (NoSuchKeyException e) {
+            throw new InvalidImageUrlException("이미지를 찾을 수 없습니다.");
+        }
+    }
+
+    /** 서버가 만든 JPEG(예: 수평을 맞춘 파노라마)를 그대로 올린다. 원본이 이미 블라인드 처리된 사진이라 다시 하지 않는다. */
+    public ImageUploadResponse uploadGeneratedJpeg(byte[] bytes) {
+        return putImage(bytes, "image/jpeg", ".jpg");
+    }
+
+    private String extractOwnImageKey(String imageUrl) {
+        String prefix = createImageUrl(IMAGE_DIRECTORY + "/");
+        if (imageUrl == null || !imageUrl.startsWith(prefix)) {
+            return null;
+        }
+        String name = imageUrl.substring(prefix.length());
+        // putImage가 만드는 키는 images/{UUID}{확장자} 한 단계뿐이다
+        if (name.isEmpty() || !name.matches("[A-Za-z0-9-]+(\\.[A-Za-z0-9]+)?")) {
+            return null;
+        }
+        return IMAGE_DIRECTORY + "/" + name;
     }
 
     private byte[] readBytes(MultipartFile file) {

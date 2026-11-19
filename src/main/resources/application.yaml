@@ -62,6 +62,11 @@ chatbot:
     batch-size: "${CHATBOT_AI_SUMMARY_BATCH_SIZE:5}"
     fixed-delay-ms: "${CHATBOT_AI_SUMMARY_FIXED_DELAY_MS:5000}"
 
+# 방 구조 추론 서비스(MomentLit/RoomScan). BE만 내부 API 키로 호출한다.
+layout:
+  base-url: "${LAYOUT_BASE_URL:http://localhost:8100}"
+  internal-api-key: "${LAYOUT_INTERNAL_API_KEY:}"
+
 cors:
   allowed-origins: "${CORS_ALLOWED_ORIGINS:http://localhost:3000}"
 

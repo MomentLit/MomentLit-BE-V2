@@ -99,6 +99,33 @@ Table Space_Panorama_Scenes {
   sort_order int [not null, note: "공간 안 360도 장면 순서. 0번이 시작 장면"]
 }
 
+Table Space_Rooms {
+  id bigint [pk, increment]
+  space_id bigint [not null, unique, note: "공간당 3D 방 하나"]
+  scene_id bigint [note: "방을 만든 360도 장면 (파노라마 방)"]
+  source varchar [not null, note: "PANORAMA | PLAN(다음 단계)"]
+  image_url varchar [note: "벽·바닥에 입히는 수평을 맞춘 파노라마"]
+  ceiling_height double [not null, note: "m"]
+  camera_height double [note: "촬영 높이 m (파노라마 방)"]
+  area_m2 double [not null]
+  geometry jsonb [not null, note: "바깥벽 다각형·안쪽 벽·촬영 위치 (미터 단위)"]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+}
+
+Table Space_Room_Layouts {
+  id bigint [pk, increment]
+  space_id bigint [not null]
+  user_id varchar [not null]
+  furniture jsonb [not null, note: "가구 목록 [{type, x, z, rotation}]"]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+
+  indexes {
+    (space_id, user_id) [unique, name: "uk_space_room_layouts_space_id_user_id", note: "로그인한 사용자가 공간마다 하나씩 저장"]
+  }
+}
+
 Table Space_Panorama_Scene_Links {
   id bigint [pk, increment]
   space_id bigint [not null]
@@ -286,6 +313,10 @@ Ref: Space_Panorama_Scenes.space_id > Spaces.id
 Ref: Space_Panorama_Scene_Links.space_id > Spaces.id
 Ref: Space_Panorama_Scene_Links.from_scene_id > Space_Panorama_Scenes.id
 Ref: Space_Panorama_Scene_Links.to_scene_id > Space_Panorama_Scenes.id
+Ref: Space_Rooms.space_id - Spaces.id
+Ref: Space_Rooms.scene_id > Space_Panorama_Scenes.id
+Ref: Space_Room_Layouts.space_id > Spaces.id
+Ref: Space_Room_Layouts.user_id > Users.id
 Ref: Space_Schedules.space_id > Spaces.id
 Ref: Spaces.address_id > Addresses.id
 Ref: Matchings.space_id > Spaces.id
