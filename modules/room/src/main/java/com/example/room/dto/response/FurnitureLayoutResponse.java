@@ -7,8 +7,13 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public record FurnitureLayoutResponse(
+        @JsonProperty("layout_id")
+        Long layoutId,
+
         @JsonProperty("space_id")
         Long spaceId,
+
+        String name,
 
         List<FurnitureLayoutRequest.Item> items,
 

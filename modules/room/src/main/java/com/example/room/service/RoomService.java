@@ -10,6 +10,7 @@ import com.example.room.dto.response.RoomResponse;
 import com.example.room.entity.RoomSource;
 import com.example.room.entity.SpaceRoom;
 import com.example.room.entity.SpaceRoomLayout;
+import com.example.room.global.exception.FurnitureLayoutNotFoundException;
 import com.example.room.global.exception.InvalidRoomException;
 import com.example.room.global.exception.RoomNotFoundException;
 import com.example.room.repository.SpaceRoomLayoutRepository;
@@ -26,12 +27,13 @@ import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class RoomService {
+
+    static final int MAX_LAYOUTS_PER_SPACE = 20;
 
     private static final TypeReference<List<FurnitureLayoutRequest.Item>> FURNITURE_TYPE = new TypeReference<>() {
     };
@@ -79,28 +81,46 @@ public class RoomService {
         roomRepository.delete(getRoomEntity(spaceId));
     }
 
-    /** 저장한 배치가 없으면 비어 있음(Optional.empty)을 돌려준다 — 처음 보는 사용자에게는 정상 상태라 404로 보내지 않는다. */
-    public Optional<FurnitureLayoutResponse> getMyLayout(String userId, Long spaceId) {
+    /** 내가 이 공간에 저장한 배치들, 최근에 고친 것부터. */
+    public List<FurnitureLayoutResponse> getMyLayouts(String userId, Long spaceId) {
         getActiveSpace(spaceId);
-        return layoutRepository.findBySpaceIdAndUserId(spaceId, userId).map(this::toResponse);
+        return layoutRepository.findAllBySpaceIdAndUserIdOrderByUpdatedAtDesc(spaceId, userId).stream()
+                .map(this::toResponse)
+                .toList();
     }
 
+    /** 새 배치로 저장. 공간마다 사용자당 MAX_LAYOUTS_PER_SPACE개까지. */
     @Transactional
-    public FurnitureLayoutResponse saveMyLayout(String userId, Long spaceId, FurnitureLayoutRequest request) {
+    public FurnitureLayoutResponse createMyLayout(String userId, Long spaceId, FurnitureLayoutRequest request) {
         getActiveSpace(spaceId);
         if (!roomRepository.existsBySpaceId(spaceId)) {
             throw new RoomNotFoundException("이 공간에는 아직 3D 방이 없습니다.");
         }
+        if (layoutRepository.countBySpaceIdAndUserId(spaceId, userId) >= MAX_LAYOUTS_PER_SPACE) {
+            throw new InvalidRoomException("배치는 공간마다 " + MAX_LAYOUTS_PER_SPACE + "개까지 저장할 수 있습니다. 안 쓰는 배치를 지워 주세요.");
+        }
 
-        SpaceRoomLayout layout = layoutRepository.findBySpaceIdAndUserId(spaceId, userId)
-                .orElseGet(() -> SpaceRoomLayout.create(spaceId, userId));
-        layout.updateFurniture(objectMapper.writeValueAsString(request.items()));
+        SpaceRoomLayout layout = SpaceRoomLayout.create(
+                spaceId, userId, request.name(), objectMapper.writeValueAsString(request.items()));
+        return toResponse(layoutRepository.saveAndFlush(layout));
+    }
+
+    /** 내 배치 덮어쓰기(이름·가구). 다른 사람 배치는 없는 것으로 본다. */
+    @Transactional
+    public FurnitureLayoutResponse updateMyLayout(String userId, Long spaceId, Long layoutId, FurnitureLayoutRequest request) {
+        SpaceRoomLayout layout = getMyLayoutEntity(userId, spaceId, layoutId);
+        layout.update(request.name(), objectMapper.writeValueAsString(request.items()));
         return toResponse(layoutRepository.saveAndFlush(layout));
     }
 
     @Transactional
-    public void deleteMyLayout(String userId, Long spaceId) {
-        layoutRepository.findBySpaceIdAndUserId(spaceId, userId).ifPresent(layoutRepository::delete);
+    public void deleteMyLayout(String userId, Long spaceId, Long layoutId) {
+        layoutRepository.delete(getMyLayoutEntity(userId, spaceId, layoutId));
+    }
+
+    private SpaceRoomLayout getMyLayoutEntity(String userId, Long spaceId, Long layoutId) {
+        return layoutRepository.findByIdAndSpaceIdAndUserId(layoutId, spaceId, userId)
+                .orElseThrow(() -> new FurnitureLayoutNotFoundException("가구 배치를 찾을 수 없습니다."));
     }
 
     private void validatePanoramaRoom(Long spaceId, RoomUpsertRequest request) {
@@ -152,7 +172,9 @@ public class RoomService {
 
     private FurnitureLayoutResponse toResponse(SpaceRoomLayout layout) {
         return new FurnitureLayoutResponse(
+                layout.getId(),
                 layout.getSpaceId(),
+                layout.getName(),
                 objectMapper.readValue(layout.getFurniture(), FURNITURE_TYPE),
                 layout.getUpdatedAt()
         );

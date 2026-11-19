@@ -117,12 +117,13 @@ Table Space_Room_Layouts {
   id bigint [pk, increment]
   space_id bigint [not null]
   user_id varchar [not null]
+  name varchar(50) [not null, note: "배치 이름 (예: 거실 A안)"]
   furniture jsonb [not null, note: "가구 목록 [{type, x, z, rotation}]"]
   created_at datetime [not null]
   updated_at datetime [not null]
 
   indexes {
-    (space_id, user_id) [unique, name: "uk_space_room_layouts_space_id_user_id", note: "로그인한 사용자가 공간마다 하나씩 저장"]
+    (space_id, user_id, updated_at) [name: "idx_space_room_layouts_space_id_user_id", note: "로그인한 사용자가 공간마다 이름 붙여 여러 개(서비스에서 20개까지) 저장"]
   }
 }
 

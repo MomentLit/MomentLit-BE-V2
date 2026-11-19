@@ -9,6 +9,7 @@ import com.example.room.dto.response.RoomResponse;
 import com.example.room.entity.RoomSource;
 import com.example.room.entity.SpaceRoom;
 import com.example.room.entity.SpaceRoomLayout;
+import com.example.room.global.exception.FurnitureLayoutNotFoundException;
 import com.example.room.global.exception.InvalidRoomException;
 import com.example.room.global.exception.RoomNotFoundException;
 import com.example.room.repository.SpaceRoomLayoutRepository;
@@ -176,23 +177,36 @@ class RoomServiceTest {
         assertThatThrownBy(() -> roomService.getRoom(SPACE_ID)).isInstanceOf(RoomNotFoundException.class);
     }
 
+    private static final List<FurnitureLayoutRequest.Item> ITEMS = List.of(
+            new FurnitureLayoutRequest.Item("sofa-3", 1.0, 2.0, Math.PI / 2),
+            new FurnitureLayoutRequest.Item("plant", 3.5, 0.5, 0.0));
+
     @Test
-    void 게스트가_가구_배치를_저장하고_다시_읽는다() {
+    void 게스트가_이름을_붙여_새_배치를_저장한다() {
         givenActiveSpace();
         when(roomRepository.existsBySpaceId(SPACE_ID)).thenReturn(true);
-        when(layoutRepository.findBySpaceIdAndUserId(SPACE_ID, GUEST_ID)).thenReturn(Optional.empty());
+        when(layoutRepository.countBySpaceIdAndUserId(SPACE_ID, GUEST_ID)).thenReturn(3L);
         when(layoutRepository.saveAndFlush(any(SpaceRoomLayout.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        List<FurnitureLayoutRequest.Item> items = List.of(
-                new FurnitureLayoutRequest.Item("sofa-3", 1.0, 2.0, Math.PI / 2),
-                new FurnitureLayoutRequest.Item("plant", 3.5, 0.5, 0.0));
+        FurnitureLayoutResponse saved = roomService.createMyLayout(GUEST_ID, SPACE_ID, new FurnitureLayoutRequest(" 거실 A안 ", ITEMS));
 
-        FurnitureLayoutResponse saved = roomService.saveMyLayout(GUEST_ID, SPACE_ID, new FurnitureLayoutRequest(items));
-
-        assertThat(saved.items()).isEqualTo(items);
+        assertThat(saved.items()).isEqualTo(ITEMS);
+        assertThat(saved.name()).isEqualTo("거실 A안");
         ArgumentCaptor<SpaceRoomLayout> captor = ArgumentCaptor.forClass(SpaceRoomLayout.class);
         verify(layoutRepository).saveAndFlush(captor.capture());
         assertThat(captor.getValue().getUserId()).isEqualTo(GUEST_ID);
+    }
+
+    @Test
+    void 배치는_공간마다_20개까지다() {
+        givenActiveSpace();
+        when(roomRepository.existsBySpaceId(SPACE_ID)).thenReturn(true);
+        when(layoutRepository.countBySpaceIdAndUserId(SPACE_ID, GUEST_ID)).thenReturn(20L);
+
+        assertThatThrownBy(() -> roomService.createMyLayout(GUEST_ID, SPACE_ID, new FurnitureLayoutRequest("B안", ITEMS)))
+                .isInstanceOf(InvalidRoomException.class)
+                .hasMessageContaining("20개");
+        verify(layoutRepository, never()).saveAndFlush(any());
     }
 
     @Test
@@ -200,15 +214,38 @@ class RoomServiceTest {
         givenActiveSpace();
         when(roomRepository.existsBySpaceId(SPACE_ID)).thenReturn(false);
 
-        assertThatThrownBy(() -> roomService.saveMyLayout(GUEST_ID, SPACE_ID, new FurnitureLayoutRequest(List.of())))
+        assertThatThrownBy(() -> roomService.createMyLayout(GUEST_ID, SPACE_ID, new FurnitureLayoutRequest("A안", List.of())))
                 .isInstanceOf(RoomNotFoundException.class);
     }
 
     @Test
-    void 저장한_배치가_없으면_비어_있다() {
-        givenActiveSpace();
-        when(layoutRepository.findBySpaceIdAndUserId(SPACE_ID, GUEST_ID)).thenReturn(Optional.empty());
+    void 내_배치를_덮어쓴다() {
+        SpaceRoomLayout layout = SpaceRoomLayout.create(SPACE_ID, GUEST_ID, "A안", "[]");
+        when(layoutRepository.findByIdAndSpaceIdAndUserId(5L, SPACE_ID, GUEST_ID)).thenReturn(Optional.of(layout));
+        when(layoutRepository.saveAndFlush(layout)).thenReturn(layout);
 
-        assertThat(roomService.getMyLayout(GUEST_ID, SPACE_ID)).isEmpty();
+        FurnitureLayoutResponse updated = roomService.updateMyLayout(GUEST_ID, SPACE_ID, 5L, new FurnitureLayoutRequest("A안 수정", ITEMS));
+
+        assertThat(updated.name()).isEqualTo("A안 수정");
+        assertThat(updated.items()).isEqualTo(ITEMS);
+    }
+
+    @Test
+    void 다른_사람의_배치는_고치거나_지울_수_없다() {
+        when(layoutRepository.findByIdAndSpaceIdAndUserId(5L, SPACE_ID, "someone-else")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> roomService.updateMyLayout("someone-else", SPACE_ID, 5L, new FurnitureLayoutRequest("x", ITEMS)))
+                .isInstanceOf(FurnitureLayoutNotFoundException.class);
+        assertThatThrownBy(() -> roomService.deleteMyLayout("someone-else", SPACE_ID, 5L))
+                .isInstanceOf(FurnitureLayoutNotFoundException.class);
+        verify(layoutRepository, never()).delete(any());
+    }
+
+    @Test
+    void 저장한_배치가_없으면_빈_목록() {
+        givenActiveSpace();
+        when(layoutRepository.findAllBySpaceIdAndUserIdOrderByUpdatedAtDesc(SPACE_ID, GUEST_ID)).thenReturn(List.of());
+
+        assertThat(roomService.getMyLayouts(GUEST_ID, SPACE_ID)).isEmpty();
     }
 }

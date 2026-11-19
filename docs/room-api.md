@@ -1,6 +1,6 @@
 # 3D Room API
 
-Phase 1 supports 360-degree panoramas (`PANORAMA`), one room per space, and one private furniture layout per user and space. Floor-plan import is not supported yet. Successful requests return `{ "message": "...", "data": ... }`.
+Phase 1 supports 360-degree panoramas (`PANORAMA`), one room per space, and up to 20 named private furniture layouts per user and space. Floor-plan import is not supported yet. Successful requests return `{ "message": "...", "data": ... }`.
 
 | Method and path | Access | Result |
 | --- | --- | --- |
@@ -9,9 +9,10 @@ Phase 1 supports 360-degree panoramas (`PANORAMA`), one room per space, and one 
 | `GET /spaces/{space-id}/room` | Public | `200` with saved room; `404` when there is no room |
 | `PUT /spaces/{space-id}/room` | Space owner or admin | `200` with created or replaced room |
 | `DELETE /spaces/{space-id}/room` | Space owner or admin | `200`; saved furniture layouts are retained |
-| `GET /spaces/{space-id}/room/my-layout` | Signed in | `200` with the caller's saved layout, or `data: null` |
-| `PUT /spaces/{space-id}/room/my-layout` | Signed in; room must exist | `200` with the caller's saved layout |
-| `DELETE /spaces/{space-id}/room/my-layout` | Signed in | `200`; no-op if the caller has no saved layout |
+| `GET /spaces/{space-id}/room/layouts` | Signed in | `200` with the caller's layouts, most recently updated first (empty list if none) |
+| `POST /spaces/{space-id}/room/layouts` | Signed in; room must exist | `201` with the new layout; `400` when the caller already has 20 for this space |
+| `PUT /spaces/{space-id}/room/layouts/{layout-id}` | Layout owner | `200` with the replaced layout; `404` if missing or another user's |
+| `DELETE /spaces/{space-id}/room/layouts/{layout-id}` | Layout owner | `200`; `404` if missing or another user's |
 
 ## Create a room during space registration
 
@@ -38,7 +39,7 @@ Coordinates are `[x, z]` in meters. List outer vertices in wall order without re
 
 ## Save furniture
 
-Send `{ "items": [{ "type": "sofa-3", "x": 0, "z": 0, "rotation": 0 }] }` to `PUT /spaces/{space-id}/room/my-layout`. Each save replaces the list; `items: []` saves an empty layout. Positions are in meters, rotation is in radians, and the frontend owns the catalog IDs and placement rules.
+Send `{ "name": "거실 A안", "items": [{ "type": "sofa-3", "x": 0, "z": 0, "rotation": 0 }] }` to `POST /spaces/{space-id}/room/layouts` to save a new layout, or to `PUT /spaces/{space-id}/room/layouts/{layout-id}` to overwrite one. `name` is required (1–50 characters); `items: []` saves an empty layout. Responses include `layout_id`, `space_id`, `name`, `items`, and `updated_at`. Positions are in meters, rotation is in radians, and the frontend owns the catalog IDs and placement rules.
 
 ## Runtime configuration
 

@@ -18,7 +18,7 @@ public class RoomExceptionHandler {
                 .body(ApiResponse.fail("[ERROR: Room/Invalid] " + e.getMessage()));
     }
 
-    @ExceptionHandler({RoomNotFoundException.class, LayoutJobNotFoundException.class})
+    @ExceptionHandler({RoomNotFoundException.class, LayoutJobNotFoundException.class, FurnitureLayoutNotFoundException.class})
     public ResponseEntity<ApiResponse<String>> handleNotFound(RoomException e) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ApiResponse.fail("[ERROR: Room/NotFound] " + e.getMessage()));

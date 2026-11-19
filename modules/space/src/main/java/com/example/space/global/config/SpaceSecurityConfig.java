@@ -65,7 +65,7 @@ public class SpaceSecurityConfig {
                         .requestMatchers(HttpMethod.PUT, "/spaces/*/availability").authenticated()
 
                         // 3D 방(room 모듈): 방은 누구나 보고, 만들기·고치기와 내 가구 배치는 로그인 필요
-                        .requestMatchers("/spaces/*/room/my-layout").authenticated()
+                        .requestMatchers("/spaces/*/room/layouts", "/spaces/*/room/layouts/*").authenticated()
                         .requestMatchers(HttpMethod.GET, "/spaces/*/room").permitAll()
                         .requestMatchers(HttpMethod.PUT, "/spaces/*/room").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/spaces/*/room").authenticated()

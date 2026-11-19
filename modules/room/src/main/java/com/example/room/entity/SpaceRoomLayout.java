@@ -6,7 +6,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -17,17 +16,13 @@ import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 
-/** 로그인한 사용자가 저장한 가구 배치(공간·사용자당 하나). furniture는 가구 목록 JSON 배열. */
+/** 로그인한 사용자가 이름을 붙여 저장한 가구 배치(공간마다 여러 개). furniture는 가구 목록 JSON 배열. */
 @Getter
 @Entity
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
         name = "space_room_layouts",
-        schema = "spaces",
-        uniqueConstraints = @UniqueConstraint(
-                name = "uk_space_room_layouts_space_id_user_id",
-                columnNames = {"space_id", "user_id"}
-        )
+        schema = "spaces"
 )
 public class SpaceRoomLayout {
 
@@ -41,6 +36,9 @@ public class SpaceRoomLayout {
     @Column(name = "user_id", nullable = false)
     private String userId;
 
+    @Column(nullable = false, length = 50)
+    private String name;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(nullable = false)
     private String furniture;
@@ -53,14 +51,16 @@ public class SpaceRoomLayout {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    public static SpaceRoomLayout create(Long spaceId, String userId) {
+    public static SpaceRoomLayout create(Long spaceId, String userId, String name, String furniture) {
         SpaceRoomLayout layout = new SpaceRoomLayout();
         layout.spaceId = spaceId;
         layout.userId = userId;
+        layout.update(name, furniture);
         return layout;
     }
 
-    public void updateFurniture(String furniture) {
+    public void update(String name, String furniture) {
+        this.name = name.trim();
         this.furniture = furniture;
     }
 }
