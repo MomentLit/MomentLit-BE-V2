@@ -54,7 +54,9 @@ public class ImageService {
     // 등장방형(equirectangular) 360도 사진은 가로:세로 = 2:1
     private static final double PANORAMA_RATIO = 2.0;
 
-    private static final double PANORAMA_RATIO_TOLERANCE = 0.02;
+    // 카메라·앱마다 픽셀 수가 조금씩 달라(예: 1456×720 = 2.022) 너무 좁으면 멀쩡한 360도 사진이 막힌다.
+    // 뷰어와 방 구조 추론은 어차피 2:1로 늘려 쓰므로 ±0.05(약 2.5%)까지는 같은 사진으로 본다. 프론트와 같은 값.
+    private static final double PANORAMA_RATIO_TOLERANCE = 0.05;
 
     // 수평 45도 간격 8장 + 천장 1장 + 바닥 1장
     private static final int PANORAMA_SOURCE_COUNT = 10;
