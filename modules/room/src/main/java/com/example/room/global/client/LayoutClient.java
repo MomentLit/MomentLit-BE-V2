@@ -1,5 +1,6 @@
 package com.example.room.global.client;
 
+import com.example.room.dto.response.PlanDetectResponse;
 import com.example.room.global.exception.LayoutRejectedException;
 import com.example.room.global.exception.LayoutUnavailableException;
 import org.springframework.beans.factory.annotation.Value;
@@ -80,6 +81,46 @@ public class LayoutClient {
             return result;
         } catch (RestClientException e) {
             throw new LayoutUnavailableException("방 구조 추론 서비스를 호출하지 못했습니다: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 평면 도면에서 벽 찾기. 못 찾으면 예외 없이 ok=false 응답이 온다.
+     *
+     * @param metersPerPixel 원본 1px = 몇 m. null이면 서비스가 짐작
+     * @throws LayoutRejectedException    이미지를 읽을 수 없음
+     * @throws LayoutUnavailableException 서비스가 응답하지 않거나 오류
+     */
+    public PlanDetectResponse detectPlan(byte[] image, Double metersPerPixel) {
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("file", new ByteArrayResource(image) {
+            @Override
+            public String getFilename() {
+                return "plan.png";
+            }
+        });
+
+        try {
+            PlanDetectResponse result = restClient.post()
+                    .uri(uri -> {
+                        uri.path("/plan/detect");
+                        if (metersPerPixel != null) uri.queryParam("m_per_px", metersPerPixel);
+                        return uri.build();
+                    })
+                    .header("X-Internal-Api-Key", internalApiKey)
+                    .contentType(MediaType.MULTIPART_FORM_DATA)
+                    .body(body)
+                    .retrieve()
+                    .onStatus(status -> status.value() == 400 || status.value() == 413, (request, response) -> {
+                        throw new LayoutRejectedException(readDetail(response));
+                    })
+                    .body(PlanDetectResponse.class);
+            if (result == null) {
+                throw new LayoutUnavailableException("도면 인식 서비스가 빈 응답을 보냈습니다.");
+            }
+            return result;
+        } catch (RestClientException e) {
+            throw new LayoutUnavailableException("도면 인식 서비스를 호출하지 못했습니다: " + e.getMessage());
         }
     }
 
