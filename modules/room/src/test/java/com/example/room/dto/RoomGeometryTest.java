@@ -16,7 +16,7 @@ class RoomGeometryTest {
     }
 
     private static RoomGeometry outerOnly(List<List<Double>> outer) {
-        return new RoomGeometry(outer, null, null, null, null);
+        return new RoomGeometry(outer, null, null, null, null, null);
     }
 
     @Test
@@ -68,13 +68,13 @@ class RoomGeometryTest {
 
     @Test
     void 안쪽_벽은_끝점_두_개여야_한다() {
-        RoomGeometry g = new RoomGeometry(rect(4, 3), List.of(List.of(List.of(1.0, 1.0))), null, null, null);
+        RoomGeometry g = new RoomGeometry(rect(4, 3), List.of(List.of(List.of(1.0, 1.0))), null, null, null, null);
         assertThatThrownBy(g::validateAndComputeArea).isInstanceOf(InvalidRoomException.class);
     }
 
     @Test
     void 모서리_uv는_0에서_1_사이여야_한다() {
-        RoomGeometry g = new RoomGeometry(rect(4, 3), null, List.of(1.0, 1.0), 0.0, List.of(List.of(0.5, 1.2)));
+        RoomGeometry g = new RoomGeometry(rect(4, 3), null, List.of(1.0, 1.0), 0.0, List.of(List.of(0.5, 1.2)), null);
         assertThatThrownBy(g::validateAndComputeArea).isInstanceOf(InvalidRoomException.class);
     }
 
@@ -85,7 +85,7 @@ class RoomGeometryTest {
                 List.of(List.of(List.of(2.0, 0.0), List.of(2.0, 1.5))),
                 List.of(2.0, 1.5),
                 0.3,
-                List.of(List.of(0.1, 0.3), List.of(0.1, 0.7)));
+                List.of(List.of(0.1, 0.3), List.of(0.1, 0.7)), null);
         assertThat(g.validateAndComputeArea()).isEqualTo(12.0);
     }
 }

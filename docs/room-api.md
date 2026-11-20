@@ -1,6 +1,6 @@
 # 3D Room API
 
-Phase 1 supports 360-degree panoramas (`PANORAMA`). A space can have up to 20 rooms, usually one per 360-degree scene, and each user can keep up to 20 named private furniture layouts per room. Floor-plan import is not supported yet. Successful requests return `{ "message": "...", "data": ... }`.
+Rooms are built from 360-degree panoramas (`PANORAMA`) or floor-plan images (`PLAN`). A space can have up to 20 rooms, usually one per 360-degree scene, and each user can keep up to 20 named private furniture layouts per room. Successful requests return `{ "message": "...", "data": ... }`.
 
 | Method and path | Access | Result |
 | --- | --- | --- |
@@ -41,6 +41,16 @@ Phase 1 supports 360-degree panoramas (`PANORAMA`). A space can have up to 20 ro
 ```
 
 Coordinates are `[x, z]` in meters. List outer vertices in wall order without repeating the first point. `inner` is a list of wall segments with two endpoints each. `yaw` is in radians, and optional `geometry.corners` stores normalized UV points for re-editing. The response also includes `room_id`, `space_id`, `area_m2`, `area_pyeong`, and `updated_at`.
+
+## Floor-plan rooms (`PLAN`)
+
+Upload the plan image with `POST /images/upload`, then create the room with `source: "PLAN"`. `image_url` is the plan image, `scene_image_url` must be null, and `camera_height` may be null. `geometry.outer` and `geometry.inner` are in meters. `geometry.camera` may be null. `geometry.plan` places the image on the floor plane and is required:
+
+```json
+"plan": { "meters_per_pixel": 0.01, "offset": [-1.0, -1.0], "width_px": 800, "height_px": 600, "show_floor": true }
+```
+
+`meters_per_pixel` is the scale (0.0001–1). `offset` is the floor coordinate `[x, z]` of the image's top-left corner. `width_px` and `height_px` are the image size, up to 20,000. `show_floor` controls whether the plan is drawn on the 3D floor. Clients keep plan rooms after scene rooms by giving them a `sort_order` of 1000 or more.
 
 ## Save furniture
 
