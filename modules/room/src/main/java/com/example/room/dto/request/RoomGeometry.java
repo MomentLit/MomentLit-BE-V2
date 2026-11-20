@@ -13,13 +13,15 @@ import java.util.List;
  * @param camera  파노라마를 찍은 위치 [x, z]. 사진을 벽에 입히는 기준점 (도면 방은 null)
  * @param yaw     파노라마 사진의 가로 회전 보정(라디안). null이면 0
  * @param corners 모서리 추론/보정 결과 uv 쌍 [[u, v], ...] (0~1). 다시 편집할 때 쓰는 원본 값
+ * @param plan    도면 방의 도면 이미지 놓는 자리(축척·위치). 파노라마 방은 null
  */
 public record RoomGeometry(
         @NotNull List<List<Double>> outer,
         List<List<List<Double>>> inner,
         List<Double> camera,
         Double yaw,
-        List<List<Double>> corners
+        List<List<Double>> corners,
+        PlanImage plan
 ) {
 
     static final int MAX_OUTER_POINTS = 64;

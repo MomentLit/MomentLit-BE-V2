@@ -123,7 +123,8 @@ public class RoomService {
     }
 
     private RoomResponse save(SpaceRoom room, RoomUpsertRequest request) {
-        validatePanoramaRoom(request);
+        if (request.source() == RoomSource.PLAN) validatePlanRoom(request);
+        else validatePanoramaRoom(request);
         double area = request.geometry().validateAndComputeArea();
         room.update(
                 request.name(),
@@ -146,10 +147,24 @@ public class RoomService {
                 .orElseThrow(() -> new FurnitureLayoutNotFoundException("가구 배치를 찾을 수 없습니다."));
     }
 
-    private void validatePanoramaRoom(RoomUpsertRequest request) {
-        if (request.source() != RoomSource.PANORAMA) {
-            throw new InvalidRoomException("도면으로 만든 방은 아직 지원하지 않습니다.");
+    /** 도면 방 — 도면 이미지와 축척·위치가 있어야 한다. 사진을 찍은 높이·자리는 없다. */
+    private void validatePlanRoom(RoomUpsertRequest request) {
+        if (request.imageUrl() == null || !imageService.isOwnImageUrl(request.imageUrl())) {
+            throw new InvalidRoomException("도면 방에는 이 서비스에 올린 도면 이미지 URL이 필요합니다.");
         }
+        if (request.sceneImageUrl() != null) {
+            throw new InvalidRoomException("도면 방은 360도 장면과 연결하지 않습니다.");
+        }
+        if (request.cameraHeight() != null && request.cameraHeight() >= request.ceilingHeight()) {
+            throw new InvalidRoomException("촬영 높이는 천장 높이보다 낮아야 합니다.");
+        }
+        if (request.geometry().plan() == null) {
+            throw new InvalidRoomException("도면 방에는 도면 축척·위치(plan)가 필요합니다.");
+        }
+        request.geometry().plan().validate();
+    }
+
+    private void validatePanoramaRoom(RoomUpsertRequest request) {
         if (request.imageUrl() == null || !imageService.isOwnImageUrl(request.imageUrl())) {
             throw new InvalidRoomException("파노라마 방에는 이 서비스에 올린 사진 URL이 필요합니다.");
         }

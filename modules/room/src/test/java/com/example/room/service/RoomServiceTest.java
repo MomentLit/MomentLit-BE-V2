@@ -2,6 +2,7 @@ package com.example.room.service;
 
 import com.example.image.service.ImageService;
 import com.example.room.dto.request.FurnitureLayoutRequest;
+import com.example.room.dto.request.PlanImage;
 import com.example.room.dto.request.RoomGeometry;
 import com.example.room.dto.request.RoomUpsertRequest;
 import com.example.room.dto.response.FurnitureLayoutResponse;
@@ -70,7 +71,7 @@ class RoomServiceTest {
     private static RoomGeometry geometry() {
         return new RoomGeometry(
                 List.of(List.of(0.0, 0.0), List.of(4.0, 0.0), List.of(4.0, 3.0), List.of(0.0, 3.0)),
-                List.of(), List.of(2.0, 1.5), 0.0, null);
+                List.of(), List.of(2.0, 1.5), 0.0, null, null);
     }
 
     private static RoomUpsertRequest request(Double cameraHeight) {
@@ -178,14 +179,61 @@ class RoomServiceTest {
                 .isInstanceOf(InvalidRoomException.class);
     }
 
+    private static final String PLAN_URL = "https://bucket.s3.ap-northeast-2.amazonaws.com/images/plan.png";
+
+    private static RoomGeometry planGeometry(PlanImage plan) {
+        return new RoomGeometry(
+                List.of(List.of(0.0, 0.0), List.of(4.0, 0.0), List.of(4.0, 3.0), List.of(0.0, 3.0)),
+                List.of(List.of(List.of(2.0, 0.0), List.of(2.0, 2.0))), null, null, null, plan);
+    }
+
+    private static PlanImage plan(double metersPerPixel) {
+        return new PlanImage(metersPerPixel, List.of(-1.0, -1.0), 800, 600, true);
+    }
+
     @Test
-    void 도면_방은_아직_거절한다() {
+    void 도면으로_만든_방을_저장한다() {
         givenActiveSpace();
         when(space.isOwner(HOST_ID)).thenReturn(true);
+        when(imageService.isOwnImageUrl(PLAN_URL)).thenReturn(true);
         when(roomRepository.countBySpaceId(SPACE_ID)).thenReturn(0L);
-        RoomUpsertRequest plan = new RoomUpsertRequest("도면", 0, null, RoomSource.PLAN, null, 2.4, null, geometry());
+        when(roomRepository.saveAndFlush(any(SpaceRoom.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        assertThatThrownBy(() -> roomService.createRoom(HOST_ID, "USER", SPACE_ID, plan))
+        RoomResponse response = roomService.createRoom(HOST_ID, "USER", SPACE_ID,
+                new RoomUpsertRequest("도면 1", 100, null, RoomSource.PLAN, PLAN_URL, 2.4, null, planGeometry(plan(0.01))));
+
+        assertThat(response.source()).isEqualTo(RoomSource.PLAN);
+        assertThat(response.cameraHeight()).isNull();
+        assertThat(response.areaM2()).isEqualTo(12.0);
+        assertThat(response.geometry().plan().metersPerPixel()).isEqualTo(0.01);
+        assertThat(response.geometry().inner()).hasSize(1);
+    }
+
+    @Test
+    void 도면_방에_축척_정보가_없거나_틀리면_거절한다() {
+        givenActiveSpace();
+        when(space.isOwner(HOST_ID)).thenReturn(true);
+        when(imageService.isOwnImageUrl(PLAN_URL)).thenReturn(true);
+        when(roomRepository.countBySpaceId(SPACE_ID)).thenReturn(0L);
+
+        assertThatThrownBy(() -> roomService.createRoom(HOST_ID, "USER", SPACE_ID,
+                new RoomUpsertRequest("도면", 100, null, RoomSource.PLAN, PLAN_URL, 2.4, null, planGeometry(null))))
+                .isInstanceOf(InvalidRoomException.class);
+        assertThatThrownBy(() -> roomService.createRoom(HOST_ID, "USER", SPACE_ID,
+                new RoomUpsertRequest("도면", 100, null, RoomSource.PLAN, PLAN_URL, 2.4, null, planGeometry(plan(5.0)))))
+                .isInstanceOf(InvalidRoomException.class)
+                .hasMessageContaining("축척");
+    }
+
+    @Test
+    void 도면_방은_장면과_연결하지_않는다() {
+        givenActiveSpace();
+        when(space.isOwner(HOST_ID)).thenReturn(true);
+        when(imageService.isOwnImageUrl(PLAN_URL)).thenReturn(true);
+        when(roomRepository.countBySpaceId(SPACE_ID)).thenReturn(0L);
+
+        assertThatThrownBy(() -> roomService.createRoom(HOST_ID, "USER", SPACE_ID,
+                new RoomUpsertRequest("도면", 100, SCENE_URL, RoomSource.PLAN, PLAN_URL, 2.4, null, planGeometry(plan(0.01)))))
                 .isInstanceOf(InvalidRoomException.class);
     }
 
