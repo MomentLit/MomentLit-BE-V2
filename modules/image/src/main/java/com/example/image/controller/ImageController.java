@@ -32,15 +32,6 @@ public class ImageController {
         return ResponseEntity.ok(ResponseUtil.success("이미지 업로드에 성공했습니다.", response));
     }
 
-    @PostMapping(value = "/panorama/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ApiResponse<ImageUploadResponse>> uploadPanorama(
-            @RequestPart("file") MultipartFile file
-    ) {
-        ImageUploadResponse response = imageService.uploadPanorama(file);
-
-        return ResponseEntity.ok(ResponseUtil.success("360도 사진 업로드에 성공했습니다.", response));
-    }
-
     @PostMapping(value = "/panorama/stitch", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<ImageUploadResponse>> stitchPanorama(
             @RequestPart("files") List<MultipartFile> files

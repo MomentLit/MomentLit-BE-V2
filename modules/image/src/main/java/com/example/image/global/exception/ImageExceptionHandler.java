@@ -53,14 +53,6 @@ public class ImageExceptionHandler {
                 .body(ApiResponse.fail("[ERROR: Image/Panorama/Count] " + e.getMessage()));
     }
 
-    @ExceptionHandler(InvalidPanoramaRatioException.class)
-    public ResponseEntity<ApiResponse<String>> invalidPanoramaRatioHandleException(InvalidPanoramaRatioException e) {
-        log.warn("InvalidPanoramaRatioException: {}", e.getMessage());
-
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.fail("[ERROR: Image/Panorama/InvalidRatio] " + e.getMessage()));
-    }
-
     @ExceptionHandler(PanoramaStitchFailedException.class)
     public ResponseEntity<ApiResponse<String>> panoramaStitchFailedHandleException(PanoramaStitchFailedException e) {
         log.error("PanoramaStitchFailedException", e);

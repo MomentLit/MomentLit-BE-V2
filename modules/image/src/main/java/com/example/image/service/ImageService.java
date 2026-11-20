@@ -7,7 +7,6 @@ import com.example.image.global.exception.EmptyImageFileException;
 import com.example.image.global.exception.ImageUploadFailedException;
 import com.example.image.global.exception.InvalidImageTypeException;
 import com.example.image.global.exception.InvalidImageUrlException;
-import com.example.image.global.exception.InvalidPanoramaRatioException;
 import com.example.image.global.exception.PanoramaImageCountException;
 import com.example.image.global.exception.PanoramaStitchFailedException;
 import java.io.ByteArrayInputStream;
@@ -40,12 +39,6 @@ public class ImageService {
             "image/jpeg",
             "image/png",
             "image/webp"
-    );
-
-    // 비율 검증에 ImageIO를 쓰는데, JDK 기본 ImageIO에는 webp 리더가 없어서 360도 사진은 jpeg/png만 받는다.
-    private static final Set<String> PANORAMA_CONTENT_TYPES = Set.of(
-            "image/jpeg",
-            "image/png"
     );
 
     private static final Map<String, String> CONTENT_TYPE_EXTENSIONS = Map.of(
@@ -86,16 +79,6 @@ public class ImageService {
         if (privacyBlur) {
             bytes = privacyBlurService.blur(bytes, CONTENT_TYPE_EXTENSIONS.get(file.getContentType()), false);
         }
-
-        return putImage(bytes, file.getContentType(), extractExtension(file.getOriginalFilename()));
-    }
-
-    public ImageUploadResponse uploadPanorama(MultipartFile file) {
-        validateImage(file);
-        validatePanoramaType(file);
-        validatePanoramaRatio(file);
-
-        byte[] bytes = privacyBlurService.blur(readBytes(file), CONTENT_TYPE_EXTENSIONS.get(file.getContentType()), true);
 
         return putImage(bytes, file.getContentType(), extractExtension(file.getOriginalFilename()));
     }
@@ -182,40 +165,6 @@ public class ImageService {
         return new ImageUploadResponse(createImageUrl(key));
     }
 
-    private void validatePanoramaType(MultipartFile file) {
-        if (!PANORAMA_CONTENT_TYPES.contains(file.getContentType())) {
-            throw new InvalidImageTypeException("360도 사진은 jpeg/png 형식만 지원합니다.");
-        }
-    }
-
-    private void validatePanoramaRatio(MultipartFile file) {
-        try (ImageInputStream input = ImageIO.createImageInputStream(file.getInputStream())) {
-            if (input == null) {
-                throw new InvalidPanoramaRatioException("이미지 크기를 확인할 수 없습니다.");
-            }
-
-            Iterator<ImageReader> readers = ImageIO.getImageReaders(input);
-            if (!readers.hasNext()) {
-                throw new InvalidPanoramaRatioException("이미지 크기를 확인할 수 없습니다.");
-            }
-
-            ImageReader reader = readers.next();
-            try {
-                reader.setInput(input);
-                double ratio = (double) reader.getWidth(0) / reader.getHeight(0);
-
-                if (Math.abs(ratio - PANORAMA_RATIO) > PANORAMA_RATIO_TOLERANCE) {
-                    throw new InvalidPanoramaRatioException("360도 사진은 가로:세로 비율이 2:1이어야 합니다.");
-                }
-            } finally {
-                reader.dispose();
-            }
-        } catch (IOException e) {
-            throw new ImageUploadFailedException("이미지 크기 확인 중 오류가 발생했습니다.", e);
-        }
-    }
-
-    // 합성 결과도 직접 올린 360도 사진과 같은 2:1 비율이어야 뷰어에서 늘어나거나 어긋나 보이지 않는다.
     private void validateStitchedPanoramaRatio(byte[] bytes) {
         try (ImageInputStream input = ImageIO.createImageInputStream(new ByteArrayInputStream(bytes))) {
             if (input == null) {
