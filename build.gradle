@@ -32,6 +32,7 @@ dependencies {
     implementation project(':modules:review')
     implementation project(':modules:like')
     implementation project(':modules:suggestion')
+    implementation project(':modules:room')
     implementation 'org.springframework.boot:spring-boot-starter'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'

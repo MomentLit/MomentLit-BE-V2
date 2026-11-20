@@ -64,6 +64,13 @@ public class SpaceSecurityConfig {
 
                         .requestMatchers(HttpMethod.PUT, "/spaces/*/availability").authenticated()
 
+                        // 3D 방(room 모듈): 방은 누구나 보고, 만들기·고치기와 내 가구 배치는 로그인 필요
+                        .requestMatchers("/spaces/*/rooms/*/layouts", "/spaces/*/rooms/*/layouts/*").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/spaces/*/rooms", "/spaces/*/rooms/*").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/spaces/*/rooms").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/spaces/*/rooms/*").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/spaces/*/rooms/*").authenticated()
+
                         // 외부 예약 링크 클릭은 비로그인도 기록한다(토큰이 있으면 필터가 principal을 채운다).
                         .requestMatchers(HttpMethod.POST, "/spaces/*/external-booking-clicks").permitAll()
                         .requestMatchers(HttpMethod.GET, "/spaces/*/external-booking-clicks/count").authenticated()

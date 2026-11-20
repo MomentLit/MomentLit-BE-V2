@@ -99,6 +99,41 @@ Table Space_Panorama_Scenes {
   sort_order int [not null, note: "공간 안 360도 장면 순서. 0번이 시작 장면"]
 }
 
+Table Space_Rooms {
+  id bigint [pk, increment]
+  space_id bigint [not null, note: "공간마다 3D 방 여러 개(360도 장면마다 하나, 20개까지)"]
+  name varchar(100) [not null, note: "방 이름 (보통 장면 이름)"]
+  sort_order int [not null, note: "3D 보기 탭 순서 (보통 장면 순서)"]
+  scene_image_url varchar [note: "방을 만든 360도 장면의 사진 URL (장면 id는 공간 수정 때 바뀔 수 있어 사진으로 연결)"]
+  source varchar [not null, note: "PANORAMA | PLAN(다음 단계)"]
+  image_url varchar [note: "벽·바닥에 입히는 수평을 맞춘 파노라마"]
+  ceiling_height double [not null, note: "m"]
+  camera_height double [note: "촬영 높이 m (파노라마 방)"]
+  area_m2 double [not null]
+  geometry jsonb [not null, note: "바깥벽 다각형·안쪽 벽·촬영 위치 (미터 단위)"]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+
+  indexes {
+    (space_id, sort_order) [name: "idx_space_rooms_space_id"]
+  }
+}
+
+Table Space_Room_Layouts {
+  id bigint [pk, increment]
+  room_id bigint [not null]
+  space_id bigint [not null]
+  user_id varchar [not null]
+  name varchar(50) [not null, note: "배치 이름 (예: 거실 A안)"]
+  furniture jsonb [not null, note: "가구 목록 [{type, x, z, rotation}]"]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+
+  indexes {
+    (room_id, user_id, updated_at) [name: "idx_space_room_layouts_room_id_user_id", note: "로그인한 사용자가 방마다 이름 붙여 여러 개(20개까지) 저장"]
+  }
+}
+
 Table Space_Panorama_Scene_Links {
   id bigint [pk, increment]
   space_id bigint [not null]
@@ -286,6 +321,10 @@ Ref: Space_Panorama_Scenes.space_id > Spaces.id
 Ref: Space_Panorama_Scene_Links.space_id > Spaces.id
 Ref: Space_Panorama_Scene_Links.from_scene_id > Space_Panorama_Scenes.id
 Ref: Space_Panorama_Scene_Links.to_scene_id > Space_Panorama_Scenes.id
+Ref: Space_Rooms.space_id > Spaces.id
+Ref: Space_Room_Layouts.room_id > Space_Rooms.id
+Ref: Space_Room_Layouts.space_id > Spaces.id
+Ref: Space_Room_Layouts.user_id > Users.id
 Ref: Space_Schedules.space_id > Spaces.id
 Ref: Spaces.address_id > Addresses.id
 Ref: Matchings.space_id > Spaces.id

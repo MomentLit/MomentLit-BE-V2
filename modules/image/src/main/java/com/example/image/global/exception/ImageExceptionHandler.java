@@ -85,6 +85,14 @@ public class ImageExceptionHandler {
                 .body(ApiResponse.fail("[ERROR: Image/File/Missing] 이미지 파일이 필요합니다."));
     }
 
+    @ExceptionHandler(InvalidImageUrlException.class)
+    public ResponseEntity<ApiResponse<String>> invalidImageUrlHandleException(InvalidImageUrlException e) {
+        log.warn("InvalidImageUrlException: {}", e.getMessage());
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.fail("[ERROR: Image/Url/Invalid] " + e.getMessage()));
+    }
+
     @ExceptionHandler(ImageException.class)
     public ResponseEntity<ApiResponse<String>> imageHandleException(ImageException e) {
         log.error("ImageException", e);
