@@ -6,6 +6,7 @@ Rooms are built from 360-degree panoramas (`PANORAMA`) or floor-plan images (`PL
 | --- | --- | --- |
 | `POST /rooms/layout-jobs` | Signed in; no space ID needed | `202` with `job_id`, `status`, `result`, `error` |
 | `GET /rooms/layout-jobs/{job-id}` | Job creator | `200` with job state; `404` if expired, missing, or owned by another user |
+| `POST /rooms/plan-detect` | Signed in | `200` with detected floor-plan walls, or `ok: false` with `reason`; `503` if the detection service is down |
 | `GET /spaces/{space-id}/rooms` | Public | `200` with the space's rooms ordered by `sort_order` (empty list if none) |
 | `GET /spaces/{space-id}/rooms/{room-id}` | Public | `200` with the room; `404` if missing or in another space |
 | `POST /spaces/{space-id}/rooms` | Space owner or admin | `201` with the new room; `400` when the space already has 20 |
@@ -15,6 +16,12 @@ Rooms are built from 360-degree panoramas (`PANORAMA`) or floor-plan images (`PL
 | `POST /spaces/{space-id}/rooms/{room-id}/layouts` | Signed in | `201` with the new layout; `400` when the caller already has 20 for this room |
 | `PUT /spaces/{space-id}/rooms/{room-id}/layouts/{layout-id}` | Layout owner | `200` with the replaced layout; `404` if missing or another user's |
 | `DELETE /spaces/{space-id}/rooms/{room-id}/layouts/{layout-id}` | Layout owner | `200`; `404` if missing or another user's |
+
+## Detect walls in a floor plan
+
+`POST /rooms/plan-detect` with `{ "image_url": "...", "meters_per_pixel": 0.01 }` finds the walls in a floor-plan image uploaded to this service. `meters_per_pixel` (original pixel → meters, 0.0001–1) is optional; when the user has already set the scale, send it so door gaps and minimum wall lengths use real sizes. Detection is classic image processing (no model), runs synchronously, and usually takes under 2 seconds.
+
+The response is `{ ok, reason, width, height, outer, inner, wall_px }`. Coordinates are original-image pixels `[x, y]`: `outer` is the exterior wall centerline polygon (axis-aligned), and `inner` is a list of interior wall segments with door gaps left open. When nothing is found, `ok` is `false` and `reason` is a message to show the user. The result is not stored; clients convert it to floor meters and let the user edit it before saving a `PLAN` room.
 
 ## Create a room during space registration
 

@@ -24,8 +24,8 @@ public class RoomExceptionHandler {
                 .body(ApiResponse.fail("[ERROR: Room/NotFound] " + e.getMessage()));
     }
 
-    @ExceptionHandler(LayoutBusyException.class)
-    public ResponseEntity<ApiResponse<String>> handleBusy(LayoutBusyException e) {
+    @ExceptionHandler({LayoutBusyException.class, LayoutUnavailableException.class})
+    public ResponseEntity<ApiResponse<String>> handleBusy(RoomException e) {
         log.warn("LayoutBusyException: {}", e.getMessage());
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                 .body(ApiResponse.fail("[ERROR: Room/Busy] " + e.getMessage()));
