@@ -32,6 +32,7 @@ public record CustomFurnitureResponse(
         LocalDateTime createdAt
 ) {
     public static CustomFurnitureResponse from(CustomFurniture furniture) {
+        String assetPath = "/rooms/furniture/" + furniture.getId();
         return new CustomFurnitureResponse(
                 furniture.getId(),
                 furniture.type(),
@@ -42,8 +43,8 @@ public record CustomFurnitureResponse(
                 furniture.getWidth(),
                 furniture.getDepth(),
                 furniture.getHeight(),
-                furniture.getModelUrl(),
-                furniture.getThumbnailUrl(),
+                furniture.getModelUrl() == null ? null : assetPath + "/model",
+                furniture.getThumbnailUrl() == null ? null : assetPath + "/thumbnail",
                 furniture.getFailureReason(),
                 furniture.getCreatedAt()
         );

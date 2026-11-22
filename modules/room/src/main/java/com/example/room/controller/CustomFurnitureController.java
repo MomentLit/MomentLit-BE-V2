@@ -11,6 +11,7 @@ import com.example.room.service.CustomFurnitureService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -59,6 +60,23 @@ public class CustomFurnitureController {
     ) {
         CustomFurnitureResponse response = customFurnitureService.createFromPhoto(principal.userId(), request, front, side);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(ResponseUtil.success("create my furniture from photo", response));
+    }
+
+    @GetMapping("/rooms/furniture/{furniture-id}/model")
+    public ResponseEntity<byte[]> getModel(@AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable("furniture-id") Long furnitureId) {
+        return asset(customFurnitureService.downloadAsset(principal.userId(), furnitureId, false),
+                MediaType.parseMediaType("model/gltf-binary"));
+    }
+
+    @GetMapping("/rooms/furniture/{furniture-id}/thumbnail")
+    public ResponseEntity<byte[]> getThumbnail(@AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable("furniture-id") Long furnitureId) {
+        return asset(customFurnitureService.downloadAsset(principal.userId(), furnitureId, true), MediaType.IMAGE_PNG);
+    }
+
+    private ResponseEntity<byte[]> asset(byte[] bytes, MediaType contentType) {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).contentType(contentType).body(bytes);
     }
 
     @PostMapping(value = "/rooms/furniture/file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

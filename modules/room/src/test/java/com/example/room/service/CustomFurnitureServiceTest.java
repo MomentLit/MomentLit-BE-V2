@@ -50,8 +50,8 @@ import static org.mockito.Mockito.when;
 class CustomFurnitureServiceTest {
 
     private static final String USER_ID = "guest-1";
-    private static final String MODEL_URL = "https://bucket.s3.ap-northeast-2.amazonaws.com/images/m.glb";
-    private static final String THUMB_URL = "https://bucket.s3.ap-northeast-2.amazonaws.com/images/t.png";
+    private static final String MODEL_URL = "furniture/11111111-1111-4111-8111-111111111111.glb";
+    private static final String THUMB_URL = "furniture/22222222-2222-4222-8222-222222222222.png";
     private static final byte[] PNG = {(byte) 0x89, 'P', 'N', 'G', 13, 10, 26, 10, 0, 0};
 
     @Mock
@@ -219,7 +219,8 @@ class CustomFurnitureServiceTest {
         assertThat(response.status()).isEqualTo(CustomFurnitureStatus.READY);
         assertThat(response.source()).isEqualTo(CustomFurnitureSource.FILE);
         assertThat(response.type()).isEqualTo("u-9");
-        assertThat(response.modelUrl()).isEqualTo(MODEL_URL);
+        assertThat(response.modelUrl()).isEqualTo("/rooms/furniture/9/model");
+        assertThat(response.thumbnailUrl()).isEqualTo("/rooms/furniture/9/thumbnail");
     }
 
     @Test
@@ -264,7 +265,22 @@ class CustomFurnitureServiceTest {
         assertThatThrownBy(() -> service.update("someone-else", 5L, new CustomFurnitureUpdateRequest("x", null)))
                 .isInstanceOf(CustomFurnitureNotFoundException.class);
         assertThatThrownBy(() -> service.delete("someone-else", 5L)).isInstanceOf(CustomFurnitureNotFoundException.class);
+        assertThatThrownBy(() -> service.downloadAsset("someone-else", 5L, false)).isInstanceOf(CustomFurnitureNotFoundException.class);
+        assertThatThrownBy(() -> service.downloadAsset("someone-else", 5L, true)).isInstanceOf(CustomFurnitureNotFoundException.class);
         verify(repository, never()).delete(any());
+        verify(imageService, never()).downloadFurnitureFile(any());
+    }
+
+    @Test
+    void 소유자는_모델과_썸네일을_받는다() {
+        CustomFurniture furniture = CustomFurniture.uploaded(USER_ID, "소파", CustomFurnitureMount.FLOOR, 1, 1, 1, MODEL_URL, THUMB_URL);
+        byte[] model = glb(2, 20);
+        when(repository.findByIdAndUserId(3L, USER_ID)).thenReturn(Optional.of(furniture));
+        when(imageService.downloadFurnitureFile(MODEL_URL)).thenReturn(model);
+        when(imageService.downloadFurnitureFile(THUMB_URL)).thenReturn(PNG);
+
+        assertThat(service.downloadAsset(USER_ID, 3L, false)).isEqualTo(model);
+        assertThat(service.downloadAsset(USER_ID, 3L, true)).isEqualTo(PNG);
     }
 
     @Test

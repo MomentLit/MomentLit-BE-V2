@@ -108,6 +108,17 @@ public class CustomFurnitureService {
         return CustomFurnitureResponse.from(find(userId, id));
     }
 
+    public byte[] downloadAsset(String userId, Long id, boolean thumbnail) {
+        CustomFurniture furniture = find(userId, id);
+        String key = thumbnail ? furniture.getThumbnailUrl() : furniture.getModelUrl();
+        byte[] bytes = furniture.getStatus() == CustomFurnitureStatus.READY && key != null
+                ? imageService.downloadFurnitureFile(key) : null;
+        if (bytes == null) {
+            throw new CustomFurnitureNotFoundException("내 가구 파일을 찾을 수 없습니다.");
+        }
+        return bytes;
+    }
+
     public CustomFurnitureResponse createFromPhoto(String userId, CustomFurniturePhotoRequest request, MultipartFile front, MultipartFile side) {
         byte[] frontBytes = readPhoto(front, "정면");
         byte[] sideBytes = side == null || side.isEmpty() ? null : readPhoto(side, "옆");

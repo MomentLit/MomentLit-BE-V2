@@ -7,6 +7,8 @@ Rooms are built from 360-degree panoramas (`PANORAMA`) or floor-plan images (`PL
 | `POST /rooms/layout-jobs` | Signed in; no space ID needed | `202` with `job_id`, `status`, `result`, `error` |
 | `GET /rooms/layout-jobs/{job-id}` | Job creator | `200` with job state; `404` if expired, missing, or owned by another user |
 | `POST /rooms/plan-detect` | Signed in | `200` with detected floor-plan walls, or `ok: false` with `reason`; `503` if the detection service is down |
+| `GET /rooms/furniture/{id}/model` | Furniture owner | Raw GLB (`model/gltf-binary`); `404` if missing, not ready, or owned by another user |
+| `GET /rooms/furniture/{id}/thumbnail` | Furniture owner | Raw PNG; `404` if missing, not ready, or owned by another user |
 | `GET /spaces/{space-id}/rooms` | Public | `200` with the space's rooms ordered by `sort_order` (empty list if none) |
 | `GET /spaces/{space-id}/rooms/{room-id}` | Public | `200` with the room; `404` if missing or in another space |
 | `POST /spaces/{space-id}/rooms` | Space owner or admin | `201` with the new room; `400` when the space already has 20 |
@@ -16,6 +18,14 @@ Rooms are built from 360-degree panoramas (`PANORAMA`) or floor-plan images (`PL
 | `POST /spaces/{space-id}/rooms/{room-id}/layouts` | Signed in | `201` with the new layout; `400` when the caller already has 20 for this room |
 | `PUT /spaces/{space-id}/rooms/{room-id}/layouts/{layout-id}` | Layout owner | `200` with the replaced layout; `404` if missing or another user's |
 | `DELETE /spaces/{space-id}/rooms/{room-id}/layouts/{layout-id}` | Layout owner | `200`; `404` if missing or another user's |
+
+## Private furniture assets
+
+`model_url` and `thumbnail_url` in furniture metadata are API paths, not public links. Send the same bearer token as for the furniture list. Asset responses are not cacheable.
+
+Before deploying uploads or photo generation, set `FURNITURE_S3_BUCKET_NAME` to a dedicated bucket in `AWS_REGION`, with all S3 Block Public Access settings enabled and no public grants. Grant the backend role `s3:GetObject`, `s3:PutObject`, and `s3:DeleteObject` on `furniture/*` in that bucket. Do not reuse `S3_BUCKET_NAME`. No browser S3 access or CORS configuration is needed.
+
+Furniture uploaded during development before private storage used public object URLs. Remove those test objects from the old bucket and recreate the test furniture; the new asset endpoints do not serve legacy public objects.
 
 ## Detect walls in a floor plan
 
