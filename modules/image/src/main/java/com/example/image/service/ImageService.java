@@ -26,6 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
@@ -144,6 +145,24 @@ public class ImageService {
     /** 서버가 만든 JPEG(예: 수평을 맞춘 파노라마)를 그대로 올린다. 원본이 이미 블라인드 처리된 사진이라 다시 하지 않는다. */
     public ImageUploadResponse uploadGeneratedJpeg(byte[] bytes) {
         return putImage(bytes, "image/jpeg", ".jpg");
+    }
+
+    /** 서버가 만든 PNG(예: 배경을 지운 가구 썸네일)를 올린다. */
+    public ImageUploadResponse uploadGeneratedPng(byte[] bytes) {
+        return putImage(bytes, "image/png", ".png");
+    }
+
+    /** 3D 가구 모델(GLB)을 올린다. 형식 검사는 호출하는 쪽이 한다. */
+    public ImageUploadResponse uploadModel(byte[] glb) {
+        return putImage(glb, "model/gltf-binary", ".glb");
+    }
+
+    /** 우리 버킷에 올린 파일을 지운다. 우리 URL이 아니면 아무것도 하지 않는다. */
+    public void deleteOwnFile(String url) {
+        String key = extractOwnImageKey(url);
+        if (key != null) {
+            s3Client.deleteObject(DeleteObjectRequest.builder().bucket(bucket).key(key).build());
+        }
     }
 
     private String extractOwnImageKey(String imageUrl) {

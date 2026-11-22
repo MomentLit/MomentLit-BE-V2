@@ -30,6 +30,8 @@ public class LayoutClient {
     private static final String DEFAULT_REJECT_MESSAGE = "사진에서 방 구조를 찾지 못했어요.";
 
     private final RestClient restClient;
+    /** 가구 생성은 CPU로 40초 안팎에, 방 인식과 잠금을 같이 써서 앞 작업을 기다릴 수 있다 — 따로 넉넉히 */
+    private final RestClient furnitureClient;
     private final String internalApiKey;
     private final ObjectMapper objectMapper;
 
@@ -43,6 +45,11 @@ public class LayoutClient {
         requestFactory.setReadTimeout(Duration.ofSeconds(90));
 
         this.restClient = RestClient.builder().baseUrl(baseUrl).requestFactory(requestFactory).build();
+
+        SimpleClientHttpRequestFactory furnitureFactory = new SimpleClientHttpRequestFactory();
+        furnitureFactory.setConnectTimeout(Duration.ofSeconds(3));
+        furnitureFactory.setReadTimeout(Duration.ofSeconds(300));
+        this.furnitureClient = RestClient.builder().baseUrl(baseUrl).requestFactory(furnitureFactory).build();
         this.internalApiKey = internalApiKey;
         this.objectMapper = objectMapper;
     }
@@ -124,6 +131,53 @@ public class LayoutClient {
         }
     }
 
+    /**
+     * 가구 사진 → 3D 모델(GLB). 모델은 바닥 가운데가 원점, 앞이 +z, 단위 m.
+     *
+     * @param side   옆 사진(없으면 null) — 깊이 비율을 잰다
+     * @param height 실제 높이(m). width·depth는 선택
+     * @throws LayoutRejectedException    사진을 못 엶 / 가구를 못 찾음 (사용자에게 그대로 보여 줄 메시지)
+     * @throws LayoutUnavailableException 서비스가 응답하지 않거나 오류
+     */
+    public FurnitureResult generateFurniture(byte[] front, byte[] side, double height, Double width, Double depth) {
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("front", namedBytes(front, "front.jpg"));
+        if (side != null) body.add("side", namedBytes(side, "side.jpg"));
+
+        try {
+            FurnitureResult result = furnitureClient.post()
+                    .uri(uri -> {
+                        uri.path("/furniture/generate").queryParam("height", height);
+                        if (width != null) uri.queryParam("width", width);
+                        if (depth != null) uri.queryParam("depth", depth);
+                        return uri.build();
+                    })
+                    .header("X-Internal-Api-Key", internalApiKey)
+                    .contentType(MediaType.MULTIPART_FORM_DATA)
+                    .body(body)
+                    .retrieve()
+                    .onStatus(status -> status.value() == 400 || status.value() == 413 || status.value() == 422, (request, response) -> {
+                        throw new LayoutRejectedException(readDetail(response));
+                    })
+                    .body(FurnitureResult.class);
+            if (result == null || result.glb() == null || result.thumbnail() == null) {
+                throw new LayoutUnavailableException("가구 생성 서비스가 빈 응답을 보냈습니다.");
+            }
+            return result;
+        } catch (RestClientException e) {
+            throw new LayoutUnavailableException("가구 생성 서비스를 호출하지 못했습니다: " + e.getMessage());
+        }
+    }
+
+    private static ByteArrayResource namedBytes(byte[] bytes, String filename) {
+        return new ByteArrayResource(bytes) {
+            @Override
+            public String getFilename() {
+                return filename;
+            }
+        };
+    }
+
     /** FastAPI 오류 본문 {"detail": "..."}에서 메시지를 꺼낸다. */
     private String readDetail(ClientHttpResponse response) {
         try {
@@ -132,6 +186,16 @@ public class LayoutClient {
         } catch (IOException | RuntimeException e) {
             return DEFAULT_REJECT_MESSAGE;
         }
+    }
+
+    /** @param glb GLB(base64), thumbnail 배경 지운 PNG(base64), 치수는 최종 크기(m) */
+    public record FurnitureResult(
+            String glb,
+            String thumbnail,
+            double width,
+            double depth,
+            double height
+    ) {
     }
 
     /** @param image 수평을 맞춘 JPEG (base64) */
