@@ -267,8 +267,8 @@ class RoomServiceTest {
     // ---------- 가구 배치 ----------
 
     private static final List<FurnitureLayoutRequest.Item> ITEMS = List.of(
-            new FurnitureLayoutRequest.Item("sofa-3", 1.0, 2.0, Math.PI / 2),
-            new FurnitureLayoutRequest.Item("plant", 3.5, 0.5, 0.0));
+            new FurnitureLayoutRequest.Item("sofa-3", 1.0, 2.0, Math.PI / 2, null),
+            new FurnitureLayoutRequest.Item("plant", 3.5, 0.5, 0.0, 0.75));
 
     @Test
     void 게스트가_방에_이름을_붙여_새_배치를_저장한다() {
@@ -331,6 +331,18 @@ class RoomServiceTest {
         assertThatThrownBy(() -> roomService.deleteMyLayout("someone-else", SPACE_ID, ROOM_ID, 5L))
                 .isInstanceOf(FurnitureLayoutNotFoundException.class);
         verify(layoutRepository, never()).delete(any());
+    }
+
+    @Test
+    void 높이_y가_생기기_전에_저장한_배치도_읽힌다() {
+        givenActiveSpace();
+        givenRoom();
+        SpaceRoomLayout legacy = SpaceRoomLayout.create(ROOM_ID, SPACE_ID, GUEST_ID, "예전 배치",
+                "[{\"type\":\"sofa-3\",\"x\":1.0,\"z\":2.0,\"rotation\":0.0}]");
+        when(layoutRepository.findAllByRoomIdAndUserIdOrderByUpdatedAtDesc(ROOM_ID, GUEST_ID)).thenReturn(List.of(legacy));
+
+        assertThat(roomService.getMyLayouts(GUEST_ID, SPACE_ID, ROOM_ID).getFirst().items())
+                .containsExactly(new FurnitureLayoutRequest.Item("sofa-3", 1.0, 2.0, 0.0, null));
     }
 
     @Test
