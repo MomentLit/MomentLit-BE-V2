@@ -26,6 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
@@ -75,6 +76,9 @@ public class ImageService {
 
     @Value("${cloud.aws.s3.bucket}")
     private String bucket;
+
+    @Value("${cloud.aws.s3.private-furniture-bucket}")
+    private String privateFurnitureBucket;
 
     /**
      * @param privacyBlur false면 얼굴·번호판 자동 블라인드를 건너뛴다 — 본인 얼굴이 주인공인 프로필 사진용.
@@ -144,6 +148,49 @@ public class ImageService {
     /** 서버가 만든 JPEG(예: 수평을 맞춘 파노라마)를 그대로 올린다. 원본이 이미 블라인드 처리된 사진이라 다시 하지 않는다. */
     public ImageUploadResponse uploadGeneratedJpeg(byte[] bytes) {
         return putImage(bytes, "image/jpeg", ".jpg");
+    }
+
+    /** 서버가 만든 PNG(예: 배경을 지운 가구 썸네일)를 올린다. */
+    public ImageUploadResponse uploadGeneratedPng(byte[] bytes) {
+        return putFurnitureFile(bytes, "image/png", ".png");
+    }
+
+    /** 3D 가구 모델(GLB)을 올린다. 형식 검사는 호출하는 쪽이 한다. */
+    public ImageUploadResponse uploadModel(byte[] glb) {
+        return putFurnitureFile(glb, "model/gltf-binary", ".glb");
+    }
+
+    public byte[] downloadFurnitureFile(String key) {
+        if (!isFurnitureKey(key)) return null;
+        try {
+            return s3Client.getObjectAsBytes(GetObjectRequest.builder().bucket(furnitureBucket()).key(key).build()).asByteArray();
+        } catch (NoSuchKeyException e) {
+            return null;
+        }
+    }
+
+    public void deleteOwnFile(String key) {
+        if (isFurnitureKey(key)) {
+            s3Client.deleteObject(DeleteObjectRequest.builder().bucket(furnitureBucket()).key(key).build());
+        }
+    }
+
+    private boolean isFurnitureKey(String key) {
+        return key != null && key.matches("furniture/[a-f0-9-]{36}\\.(glb|png)");
+    }
+
+    private ImageUploadResponse putFurnitureFile(byte[] bytes, String contentType, String extension) {
+        String key = "furniture/" + UUID.randomUUID() + extension;
+        s3Client.putObject(PutObjectRequest.builder().bucket(furnitureBucket()).key(key)
+                .contentType(contentType).contentLength((long) bytes.length).build(), RequestBody.fromBytes(bytes));
+        return new ImageUploadResponse(key);
+    }
+
+    private String furnitureBucket() {
+        if (privateFurnitureBucket.isBlank() || privateFurnitureBucket.equals(bucket)) {
+            throw new IllegalStateException("A separate private furniture bucket is required");
+        }
+        return privateFurnitureBucket;
     }
 
     private String extractOwnImageKey(String imageUrl) {
