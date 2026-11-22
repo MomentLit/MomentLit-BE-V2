@@ -1,6 +1,7 @@
 package com.example.room.dto.response;
 
 import com.example.room.entity.CustomFurniture;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.example.room.entity.CustomFurnitureMount;
 import com.example.room.entity.CustomFurnitureSource;
 import com.example.room.entity.CustomFurnitureStatus;
@@ -21,9 +22,13 @@ public record CustomFurnitureResponse(
         Double width,
         Double depth,
         Double height,
+        @JsonProperty("model_url")
         String modelUrl,
+        @JsonProperty("thumbnail_url")
         String thumbnailUrl,
+        @JsonProperty("failure_reason")
         String failureReason,
+        @JsonProperty("created_at")
         LocalDateTime createdAt
 ) {
     public static CustomFurnitureResponse from(CustomFurniture furniture) {
