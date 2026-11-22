@@ -26,6 +26,8 @@ public record FurnitureLayoutRequest(
      * @param x        바닥 평면 x(m), 가구 중심
      * @param z        바닥 평면 z(m), 가구 중심
      * @param rotation y축 회전(라디안)
+     * @param y        바닥에서 가구 밑면까지 높이(m). 가구 위 소품·벽에 건 액자·천장 조명에 쓴다.
+     *                 없으면(null) 바닥 — 이 필드가 생기기 전에 저장한 배치도 그대로 읽힌다
      */
     public record Item(
             @NotNull(message = "가구 종류는 필수입니다.")
@@ -39,7 +41,10 @@ public record FurnitureLayoutRequest(
             Double z,
 
             @NotNull @DecimalMin("-7") @DecimalMax("7")
-            Double rotation
+            Double rotation,
+
+            @DecimalMin("0") @DecimalMax("10")
+            Double y
     ) {
     }
 }
