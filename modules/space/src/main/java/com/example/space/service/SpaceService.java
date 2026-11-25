@@ -242,6 +242,38 @@ public class SpaceService implements SpaceInternalApi {
         return SpaceDetailResponse.from(space, AddressResponse.from(address), images, panoramaScenes, panoramaSceneLinks, host.name(), host.imageUrl());
     }
 
+    /**
+     * 공개 상세 조회(GET /spaces/{id}) — 승인(APPROVED)된 공간은 누구나 보고,
+     * 그 외(DRAFT·PENDING·REJECTED)는 공간 주인과 관리자만 볼 수 있다.
+     * userId/role은 비로그인이면 null.
+     */
+    public SpaceDetailResponse getSpaceForViewer(
+            Long spaceId,
+            String userId,
+            String role
+    ) {
+        Space space = getActiveSpace(spaceId);
+        validateViewable(space, userId, role);
+        return getSpace(spaceId);
+    }
+
+    private void validateViewable(
+            Space space,
+            String userId,
+            String role
+    ) {
+        if (space.getAdminStatus() == ApprovalStatus.APPROVED) {
+            return;
+        }
+        if (Role.ADMIN.name().equals(role)) {
+            return;
+        }
+        if (userId != null && space.isOwner(userId)) {
+            return;
+        }
+        throw new ForbiddenException("승인되지 않은 공간은 공간 주인과 관리자만 볼 수 있습니다.");
+    }
+
     @Transactional
     public void updateSpace(
             String userId,

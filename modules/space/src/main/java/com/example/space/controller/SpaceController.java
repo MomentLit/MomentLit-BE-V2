@@ -118,9 +118,15 @@ public class SpaceController {
 
     @GetMapping("/{space-id}")
     public ResponseEntity<ApiResponse<SpaceDetailResponse>> getSpace(
+            @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable("space-id") Long spaceId
     ) {
-        SpaceDetailResponse response = spaceService.getSpace(spaceId);
+        // permitAll 경로라 비로그인이면 principal이 null이다.
+        SpaceDetailResponse response = spaceService.getSpaceForViewer(
+                spaceId,
+                principal == null ? null : principal.userId(),
+                principal == null ? null : principal.role().name()
+        );
 
         ApiResponse<SpaceDetailResponse> apiResponse =
                 ResponseUtil.success("select space", response);
